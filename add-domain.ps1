@@ -1,5 +1,10 @@
+if (-not $env:VERCEL_API_KEY) {
+    Write-Error "Defina a variavel de ambiente VERCEL_API_KEY antes de rodar: `$env:VERCEL_API_KEY='...'"
+    exit 1
+}
+
 $headers = @{
-    "Authorization" = "Bearer vc_8IhPlHS9ufe4qxWr568kMWNpHz6bh0q3ij2y8SO1KZurqnBCxF2mQxiB"
+    "Authorization" = "Bearer $($env:VERCEL_API_KEY)"
     "Content-Type" = "application/json"
 }
 

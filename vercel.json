@@ -1,9 +1,10 @@
 {
-    "version": 2,
+    "framework": "vite",
+    "outputDirectory": "dist",
     "rewrites": [
         {
-            "source": "/(.*)",
-            "destination": "/$1"
+            "source": "/((?!assets/).*)",
+            "destination": "/index.html"
         }
     ]
 }

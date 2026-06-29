@@ -1,7 +1,14 @@
 const https = require('https');
 
-const VERCEL_API_KEY = 'vc_8IhPlHS9ufe4qxWr568kMWNpHz6bh0q3ij2y8SO1KZurqnBCxF2mQxiB';
+// Token lido do ambiente — NUNCA commitar credenciais em texto puro.
+// Defina antes de rodar:  set VERCEL_API_KEY=...  (cmd)  |  $env:VERCEL_API_KEY="..."  (PowerShell)
+const VERCEL_API_KEY = process.env.VERCEL_API_KEY;
 const TEAM_ID = 'changzaoos-projects';
+
+if (!VERCEL_API_KEY) {
+    console.error('Defina a variavel de ambiente VERCEL_API_KEY antes de rodar.');
+    process.exit(1);
+}
 
 function addDomain(domain) {
     const postData = JSON.stringify({
