@@ -5,5 +5,12 @@ dist
 .env
 .env.local
 .vercel
+
+# Credenciais — nunca versionar
 serviceAccount.json
 *serviceAccount*.json
+
+# Conteudo sensivel — fica no Firebase/Supabase, nao no repo publico
+vnmax-os/
+src/data-internal.mjs
+exports/
