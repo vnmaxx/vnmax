@@ -15,20 +15,17 @@
 
         <div id="auth-section" class="card">
             <div class="input-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" placeholder="seu@email.com">
+                <label>Email</label>
+                <input type="email" id="email" placeholder="email@exemplo.com">
             </div>
-
             <div class="input-group">
-                <label for="password">Senha</label>
+                <label>Senha</label>
                 <input type="password" id="password" placeholder="••••••••">
             </div>
-
-            <div id="auth-message" class="message"></div>
-
+            <div id="message" class="message"></div>
             <div class="buttons">
-                <button id="login-btn" class="btn btn-primary">Entrar</button>
-                <button id="register-btn" class="btn btn-secondary">Cadastrar</button>
+                <button id="login" class="btn btn-primary">Entrar</button>
+                <button id="register" class="btn btn-secondary">Cadastrar</button>
             </div>
         </div>
 
@@ -36,13 +33,13 @@
             <div class="user-avatar">
                 <img src="logo.png" alt="VNMAX">
             </div>
-            <div class="welcome-text">Bem-vindo</div>
+            <div class="welcome">Bem-vindo</div>
             <p id="user-email" class="user-email"></p>
             <div class="status">
                 <span class="status-dot"></span>
                 Online
             </div>
-            <button id="logout-btn" class="btn btn-danger">Sair</button>
+            <button id="logout" class="btn btn-danger">Sair</button>
         </div>
     </div>
 
@@ -50,106 +47,100 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
-        const firebaseConfig = {
+        const app = initializeApp({
             apiKey: "AIzaSyDPgiG3xbyo4P3qbLzRqZrlANGxifmwrzw",
             authDomain: "vnmax-6a660.firebaseapp.com",
             projectId: "vnmax-6a660",
             storageBucket: "vnmax-6a660.firebasestorage.app",
             messagingSenderId: "795631747302",
-            appId: "1:795631747302:web:bc40546368f9f80c447b27",
-            measurementId: "G-NVNP64WTYX"
-        };
+            appId: "1:795631747302:web:bc40546368f9f80c447b27"
+        });
 
-        const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-
-        const authSection = document.getElementById('auth-section');
-        const userSection = document.getElementById('user-section');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
-        const loginBtn = document.getElementById('login-btn');
-        const registerBtn = document.getElementById('register-btn');
-        const logoutBtn = document.getElementById('logout-btn');
-        const authMessage = document.getElementById('auth-message');
-        const userEmailSpan = document.getElementById('user-email');
+        const loginBtn = document.getElementById('login');
+        const registerBtn = document.getElementById('register');
+        const logoutBtn = document.getElementById('logout');
+        const messageEl = document.getElementById('message');
+        const authSection = document.getElementById('auth-section');
+        const userSection = document.getElementById('user-section');
+        const userEmailEl = document.getElementById('user-email');
 
         function showMessage(text, type) {
-            authMessage.textContent = text;
-            authMessage.className = `message ${type} show`;
+            messageEl.textContent = text;
+            messageEl.className = `message ${type} show`;
             setTimeout(() => {
-                authMessage.className = 'message';
-                authMessage.textContent = '';
-            }, 4000);
+                messageEl.className = 'message';
+            }, 3000);
         }
 
-        loginBtn.addEventListener('click', async () => {
+        loginBtn.onclick = async () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value;
-
+            
             if (!email || !password) {
                 showMessage('Preencha todos os campos', 'error');
                 return;
             }
 
-            loginBtn.disabled = true;
             loginBtn.textContent = '...';
+            loginBtn.disabled = true;
 
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                const errorMessages = {
+                const errors = {
                     'auth/user-not-found': 'Usuário não encontrado',
                     'auth/wrong-password': 'Senha incorreta',
-                    'auth/invalid-credential': 'Credenciais inválidas'
+                    'auth/invalid-credential': 'Email ou senha inválidos'
                 };
-                showMessage(errorMessages[error.code] || 'Erro ao fazer login', 'error');
+                showMessage(errors[error.code] || 'Erro ao entrar', 'error');
             }
 
-            loginBtn.disabled = false;
             loginBtn.textContent = 'Entrar';
-        });
+            loginBtn.disabled = false;
+        };
 
-        registerBtn.addEventListener('click', async () => {
+        registerBtn.onclick = async () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value;
-
+            
             if (!email || !password) {
                 showMessage('Preencha todos os campos', 'error');
                 return;
             }
 
             if (password.length < 6) {
-                showMessage('A senha deve ter no mínimo 6 caracteres', 'error');
+                showMessage('Senha mínimo 6 caracteres', 'error');
                 return;
             }
 
-            registerBtn.disabled = true;
             registerBtn.textContent = '...';
+            registerBtn.disabled = true;
 
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
-                showMessage('Usuário cadastrado com sucesso', 'success');
+                showMessage('Cadastrado com sucesso', 'success');
             } catch (error) {
-                const errorMessages = {
-                    'auth/email-already-in-use': 'Este email já está cadastrado',
+                const errors = {
+                    'auth/email-already-in-use': 'Email já cadastrado',
                     'auth/invalid-email': 'Email inválido'
                 };
-                showMessage(errorMessages[error.code] || 'Erro ao cadastrar', 'error');
+                showMessage(errors[error.code] || 'Erro ao cadastrar', 'error');
             }
 
-            registerBtn.disabled = false;
             registerBtn.textContent = 'Cadastrar';
-        });
+            registerBtn.disabled = false;
+        };
 
-        logoutBtn.addEventListener('click', async () => {
-            await signOut(auth);
-        });
+        logoutBtn.onclick = () => signOut(auth);
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 authSection.classList.add('hidden');
                 userSection.classList.remove('hidden');
-                userEmailSpan.textContent = user.email;
+                userEmailEl.textContent = user.email;
             } else {
                 authSection.classList.remove('hidden');
                 userSection.classList.add('hidden');
