@@ -160,11 +160,15 @@ export function renderLanding() {
         <div class="footer-brand">
           <img src="${logoUrl}" alt="VNMAX">
           <p>${c.footer.tagline}</p>
+          <div class="social">
+            ${brand.social.map((s) => `<a href="${s.url}" target="_blank" rel="noopener noreferrer" aria-label="${s.name}" title="${s.name}">${icon(s.icon)}</a>`).join('')}
+          </div>
+          <a class="footer-email" href="mailto:${brand.email}">${brand.email}</a>
         </div>
         ${c.footer.columns.map((col) => `
           <div class="footer-col">
             <h4>${col.title}</h4>
-            <ul>${col.links.map((l) => `<li><a href="#">${l}</a></li>`).join('')}</ul>
+            <ul>${col.links.map((l) => `<li><a href="${l === 'Contato' ? 'mailto:' + brand.email : '#'}">${l}</a></li>`).join('')}</ul>
           </div>`).join('')}
       </div>
       <div class="footer-bottom">

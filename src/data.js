@@ -9,8 +9,15 @@ export const brand = {
   name: 'VNMAX',
   domain: 'vnmax.org',
   slogan: 'Construindo o futuro através da tecnologia',
-  email: 'contato@vnmax.org',
+  email: 'vnmax6@gmail.com',
   founded: 2026,
+  social: [
+    { name: 'Instagram', icon: 'instagram', url: 'https://www.instagram.com/vnmax6/' },
+    { name: 'TikTok', icon: 'tiktok', url: 'https://www.tiktok.com/@vnmax1' },
+    { name: 'LinkedIn', icon: 'linkedin', url: 'https://www.linkedin.com/in/vnmax-org-0026ba41a/' },
+    { name: 'Bluesky', icon: 'bluesky', url: 'https://bsky.app/profile/vnmax.bsky.social' },
+    { name: 'YouTube', icon: 'youtube', url: 'https://www.youtube.com/channel/UC1x_G7Bypie0xGYQgxezLHg' },
+  ],
 };
 
 /* ------------------------------------------------------------------ */
