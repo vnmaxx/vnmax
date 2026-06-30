@@ -42,6 +42,20 @@ img { max-width: 100%; display: block; }
 ::selection { background: var(--accent); color: #fff; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 
+/* ----- scrollbars (tema VNMAX, substitui a barra generica do SO) ----- */
+/* Firefox (scrollbar-color e herdado -> vale para todos os contêineres). */
+html { scrollbar-color: #3a3a42 transparent; scrollbar-width: thin; }
+/* WebKit/Chromium (pagina + qualquer area rolavel: CRM board, drawer, docs…). */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #3a3a42; border-radius: 999px;
+  border: 2px solid transparent; background-clip: padding-box;  /* pilula flutuante, agnostica ao fundo */
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent-deep); }
+::-webkit-scrollbar-thumb:active { background: var(--accent); }
+::-webkit-scrollbar-corner { background: transparent; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
