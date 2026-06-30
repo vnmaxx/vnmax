@@ -2,32 +2,13 @@
 // backup local em data/leads.jsonl. Se nao houver credenciais Firebase, funciona
 // so com o backup local (e avisa). Usado pelo chat (tool) e pelo /api/contact.
 import { appendFile, mkdir } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import admin from 'firebase-admin';
+import { db, admin } from './firebase-admin.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(__dirname, 'data');
 const LEADS_FILE = resolve(DATA_DIR, 'leads.jsonl');
-const SA_PATH = resolve(__dirname, 'serviceAccount.json');
-
-let db = null;
-try {
-  if (existsSync(SA_PATH)) {
-    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(readFileSync(SA_PATH, 'utf8'))) });
-    db = admin.firestore();
-    console.log('[leads] Firestore conectado (serviceAccount.json) — leads alimentam o CRM.');
-  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    admin.initializeApp({ credential: admin.credential.applicationDefault() });
-    db = admin.firestore();
-    console.log('[leads] Firestore conectado (GOOGLE_APPLICATION_CREDENTIALS).');
-  } else {
-    console.warn('[leads] SEM credenciais Firebase: leads vao apenas para data/leads.jsonl. Para alimentar o CRM, coloque serviceAccount.json em server/.');
-  }
-} catch (e) {
-  console.warn('[leads] Falha ao iniciar Firestore:', e.message, '— usando apenas leads.jsonl.');
-}
 
 // Valida nome + contato (e-mail OU telefone BR). Rejeita placeholders/lixo.
 export function validarContato(nome, contato) {

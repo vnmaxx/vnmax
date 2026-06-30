@@ -7,6 +7,7 @@ import { chatCompletion } from './nvidia.js';
 import { tools, runTool } from './tools.js';
 import { buildSystemPrompt } from './prompt.js';
 import { saveLead, validarContato } from './leads.js';
+import { requireMember, handleStatus, handleAdapt, handlePublish, handleCancel } from './social.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.NVIDIA_API_KEY;
@@ -62,7 +63,7 @@ function setCors(res, origin) {
   if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-VNMAX-Token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-VNMAX-Token, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 function json(res, status, obj, origin) {
@@ -197,6 +198,42 @@ async function handleContact(req, res, origin, ip) {
   }
 }
 
+// Endpoints PRIVILEGIADOS da aba Social (portal interno). Exigem ID token do
+// Firebase de um membro da allowlist (requireMember). Aqui ficam as chaves
+// Ayrshare/NVIDIA — nunca no frontend.
+async function handleSocial(req, res, origin, ip, sub) {
+  let member;
+  try { member = await requireMember(req); }
+  catch (e) { return json(res, e.status || 401, { error: e.message }, origin); }
+
+  try {
+    if (req.method === 'GET' && sub === 'status') return json(res, 200, await handleStatus(), origin);
+
+    if (req.method === 'POST') {
+      let body;
+      try { body = JSON.parse(await readBody(req, 200_000) || '{}'); }
+      catch { return json(res, 400, { error: 'JSON inválido.' }, origin); }
+
+      if (sub === 'adapt') {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), Number(process.env.REQUEST_TIMEOUT_MS || 60_000));
+        try { return json(res, 200, await handleAdapt(body, controller.signal), origin); }
+        finally { clearTimeout(timeout); }
+      }
+      if (sub === 'publish') return json(res, 200, await handlePublish(body, member), origin);
+      if (sub === 'cancel') return json(res, 200, await handleCancel(body, member), origin);
+    }
+    return json(res, 404, { error: 'Rota social não encontrada.' }, origin);
+  } catch (e) {
+    console.error('[social] erro:', e.message);
+    const aborted = e.name === 'AbortError';
+    if (aborted) return json(res, 504, { error: 'Tempo de resposta excedido. Tente novamente.' }, origin);
+    // Erros de provedor externo (NVIDIA/Ayrshare) nao vao verbatim ao cliente.
+    if (e.upstream) return json(res, e.status || 502, { error: 'Falha no serviço de publicação/IA. Tente novamente.' }, origin);
+    return json(res, e.status || 502, { error: e.message }, origin);
+  }
+}
+
 const server = createServer(async (req, res) => {
   const origin = corsOrigin(req.headers.origin);
   const ip = clientIp(req);
@@ -204,6 +241,15 @@ const server = createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { setCors(res, origin); res.writeHead(204); return res.end(); }
 
   if (req.method === 'GET' && req.url === '/api/health') return json(res, 200, { ok: true }, origin);
+
+  if (req.url.startsWith('/api/social/')) {
+    // Defesa em profundidade: Origin de navegador valido + rate limit. A auth
+    // real e o ID token verificado em requireMember.
+    if (!ALLOW_ANY && (!req.headers.origin || !origin)) return json(res, 403, { error: 'Origem não autorizada.' }, '');
+    if (rateLimited(ip)) return json(res, 429, { error: 'Muitas requisições em pouco tempo. Aguarde um momento.' }, origin);
+    const sub = req.url.split('?')[0].replace('/api/social/', '');
+    return handleSocial(req, res, origin, ip, sub);
+  }
 
   if (req.method === 'POST' && (req.url === '/api/chat' || req.url === '/api/contact')) {
     // Token opcional do app (se configurado).

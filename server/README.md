@@ -1,11 +1,16 @@
 # Assistente VNMAX (NVIDIA NIM) + captura de leads (CRM)
 
-Backend que (1) responde/ajuda/agenda visitantes via **NVIDIA NIM** (chat) e
-(2) recebe o **formulário de contato** do site. Todo lead — do chat e do formulário —
-é gravado no **Firestore** (alimenta o CRM interno) com backup local em `data/leads.jsonl`.
-A chave da NVIDIA fica **somente** aqui (no `.env`) — nunca no frontend.
+Backend que (1) responde/ajuda/agenda visitantes via **NVIDIA NIM** (chat),
+(2) recebe o **formulário de contato** do site e (3) publica/agenda nas redes
+sociais via **Ayrshare** com adaptação por rede via IA (aba **Social** do portal).
+Todo lead — do chat e do formulário — é gravado no **Firestore** (alimenta o CRM)
+com backup local em `data/leads.jsonl`. As chaves (NVIDIA/Ayrshare) ficam
+**somente** aqui (no `.env`) — nunca no frontend.
 
-Endpoints: `POST /api/chat`, `POST /api/contact`, `GET /api/health`.
+Endpoints públicos: `POST /api/chat`, `POST /api/contact`, `GET /api/health`.
+Endpoints privilegiados (exigem ID token Firebase de um membro da allowlist):
+`GET /api/social/status`, `POST /api/social/adapt`, `POST /api/social/publish`,
+`POST /api/social/cancel`.
 
 ## Requisitos
 - Node.js **18+**.
@@ -63,6 +68,20 @@ Rebuilde o site. O widget passa a chamar `${VITE_CHAT_API_URL}/api/chat`.
 Quando o visitante pede contato/agendamento, o modelo chama a ferramenta
 `registrar_contato` e o pedido é gravado em `server/data/leads.jsonl`
 (uma linha JSON por contato). Plugue depois em e-mail/CRM/Firestore se quiser.
+
+## Redes sociais (aba Social)
+Defina no `.env` do servidor:
+```
+AYRSHARE_API_KEY=...           # chave do Ayrshare (conecte as redes em app.ayrshare.com)
+NVIDIA_SOCIAL_MODEL=           # opcional: modelo dedicado p/ copy; vazio = usa NVIDIA_MODEL
+```
+- Conecte Instagram, X, LinkedIn, TikTok, YouTube, Facebook, Threads, Bluesky,
+  Pinterest, Reddit, Telegram e Google Business no painel do Ayrshare (modo conta única).
+- A publicação/agendamento usa o `scheduleDate` nativo do Ayrshare (UTC). A agenda
+  (coleção Firestore `social_posts`) é **gravada só pelo servidor** (Admin SDK) e lida
+  pelos membros via allowlist. Publique a regra `social_posts` (`firestore.rules`) no console.
+- Os endpoints `/api/social/*` exigem `Authorization: Bearer <ID token Firebase>` de um
+  usuário presente em `allowlist/{uid}` — verificado no servidor (`requireMember`).
 
 ## Segurança
 - `NVIDIA_API_KEY` vive só no `.env` (gitignored, chmod 600). Nunca no bundle/frontend.

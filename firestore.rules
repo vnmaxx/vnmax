@@ -37,6 +37,14 @@ service cloud.firestore {
       allow create: if false;
     }
 
+    // Postagens sociais (aba Social): agenda + status por rede. Escrita SOMENTE
+    // pelo servidor (Admin SDK), que verifica o ID token e fala com o Ayrshare.
+    // Membros apenas leem a agenda.
+    match /social_posts/{id} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+
     // Allowlist de membros internos (gerenciada no console / Admin SDK).
     match /allowlist/{uid} {
       allow read, write: if false;

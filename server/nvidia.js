@@ -16,6 +16,7 @@ export async function chatCompletion({ apiKey, model, messages, tools, temperatu
     const text = await res.text().catch(() => '');
     const err = new Error(`NVIDIA ${res.status}: ${text.slice(0, 300)}`);
     err.status = res.status;
+    err.upstream = true;      // erro do provedor: nao repassar verbatim ao cliente
     throw err;
   }
   return res.json();

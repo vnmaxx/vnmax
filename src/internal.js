@@ -8,6 +8,7 @@ import { logout } from './firebase.js';
 
 export { getInternalContent } from './internal-data.js';
 import { getInternalDocs, getLeads, updateLeadStage, addLeadEvent, updateLeadFields, deleteLead } from './internal-data.js';
+import { socialStatus, adaptPosts, publishPosts, cancelCampaign, getSocialPosts } from './social-data.js';
 
 // Estagios do funil do CRM (NOVO -> ... -> FECHADO / PERDIDO).
 const STAGES = [
@@ -81,6 +82,7 @@ export function renderInternal(user, content) {
         <div class="tabs" id="tabs">
           <button class="tab active" data-tab="inst">Institucional</button>
           <button class="tab" data-tab="crm">CRM</button>
+          <button class="tab" data-tab="social">Social</button>
           <button class="tab" data-tab="eco">Ecossistema</button>
           <button class="tab" data-tab="road">Roadmap</button>
           <button class="tab" data-tab="estr">Estratégia</button>
@@ -115,6 +117,18 @@ export function renderInternal(user, content) {
         <p class="lead">Contatos do formulário do site e do assistente de IA, organizados por estágio. Arraste os cards entre as colunas para mover no funil.</p>
         <div id="crmMount">
           <div style="display:flex;align-items:center;gap:12px;color:var(--text-dim);padding:30px 0"><span class="spinner"></span> Carregando leads…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SOCIAL -->
+    <section class="panel hidden" data-panel="social">
+      <div class="wrap" style="max-width:none">
+        <span class="eyebrow">Social · Publicação multi-rede</span>
+        <h2 class="section-title">Publicar e agendar nas redes</h2>
+        <p class="lead">Escreva uma vez, adapte para cada rede com IA e publique ou agende em todas as redes do Ayrshare. A agenda mostra o que está programado e o que já foi publicado.</p>
+        <div id="socialMount">
+          <div style="display:flex;align-items:center;gap:12px;color:var(--text-dim);padding:30px 0"><span class="spinner"></span> Carregando central de publicação…</div>
         </div>
       </div>
     </section>
@@ -239,6 +253,7 @@ export function bindInternal(root, onLogout) {
   const panels = root.querySelectorAll('.panel');
   let docsLoaded = false;
   let crmLoaded = false;
+  let socialLoaded = false;
 
   const activate = (target) => {
     tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === target));
@@ -246,6 +261,7 @@ export function bindInternal(root, onLogout) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (target === 'docs' && !docsLoaded) { docsLoaded = true; loadDocs(root); }
     if (target === 'crm' && !crmLoaded) { crmLoaded = true; loadCrm(root); }
+    if (target === 'social' && !socialLoaded) { socialLoaded = true; loadSocial(root); }
   };
   tabs.forEach((tab) => tab.addEventListener('click', () => activate(tab.dataset.tab)));
 
@@ -288,6 +304,13 @@ async function loadDocs(root) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// So aceita http(s) em href (bloqueia javascript:/data:/vbscript:). Retorna a URL
+// segura ou null.
+function safeUrl(u) {
+  try { const url = new URL(String(u || '')); return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : null; }
+  catch { return null; }
 }
 
 function fmtDate(ts) {
@@ -506,4 +529,216 @@ async function loadCrm(root) {
   });
 
   render();
+}
+
+/* ---------------- SOCIAL: composer multi-rede + adaptacao IA + agenda --------------- */
+const SOCIAL_ICON = { instagram: 'instagram', twitter: 'spark', linkedin: 'linkedin', facebook: 'megaphone', tiktok: 'tiktok', youtube: 'youtube', threads: 'spark', bluesky: 'bluesky', pinterest: 'tag', reddit: 'spark', telegram: 'send', gmb: 'tag' };
+const SOCIAL_STATUS = {
+  agendado: { l: 'Agendado', c: '#f5b73c' }, publicado: { l: 'Publicado', c: '#36d399' },
+  parcial: { l: 'Parcial', c: '#ff8a3d' }, erro: { l: 'Erro', c: '#ff4d4f' },
+  cancelado: { l: 'Cancelado', c: '#8a8a93' }, pendente: { l: 'Pendente', c: '#9b5cff' },
+};
+const tomos = [['profissional', 'Profissional'], ['inspirador', 'Inspirador'], ['descontraido', 'Descontraído'], ['tecnico', 'Técnico'], ['vendedor', 'Persuasivo']];
+
+async function loadSocial(root) {
+  const mount = root.querySelector('#socialMount');
+  if (!mount) return;
+
+  let status, posts = [];
+  try { status = await socialStatus(); }
+  catch (err) {
+    mount.innerHTML = `<p style="color:#ff6b6b;margin-bottom:12px">Não foi possível conectar ao servidor de publicação: ${escapeHtml(err.message || '')}</p><button class="btn btn-ghost" id="soRetry">Tentar de novo</button>`;
+    mount.querySelector('#soRetry').addEventListener('click', () => loadSocial(root));
+    return;
+  }
+  let agendaError = '';
+  try { posts = await getSocialPosts(); } catch (e) { agendaError = e.message || 'Falha ao carregar a agenda.'; }
+
+  const platforms = status.platforms || [];
+  const byKey = Object.fromEntries(platforms.map((p) => [p.key, p]));
+  const connected = new Set(status.connected || []);
+  const selected = new Set();
+  let variants = {};
+  let busy = false;
+
+  const netChip = (p) => {
+    const on = selected.has(p.key);
+    const conn = connected.has(p.key);
+    return `<button class="so-net${on ? ' on' : ''}" data-net="${p.key}" title="${conn ? 'Conectada' : 'Não conectada no Ayrshare'}${p.requiresMedia ? ' · exige mídia' : ''}">
+      <span class="so-net-ico">${icon(SOCIAL_ICON[p.key] || 'spark')}</span>${escapeHtml(p.label)}
+      ${conn ? '<span class="so-dot on"></span>' : '<span class="so-dot"></span>'}
+    </button>`;
+  };
+
+  const cfgNote = !status.ayrshare
+    ? '<div class="so-warn">Ayrshare não configurado no servidor. Defina <b>AYRSHARE_API_KEY</b> no <code>.env</code> do servidor e conecte suas redes no painel do Ayrshare.</div>'
+    : (status.connectError ? `<div class="so-warn">Conectado ao Ayrshare, mas a leitura das redes falhou: ${escapeHtml(status.connectError)}</div>`
+      : (!connected.size ? '<div class="so-warn">Nenhuma rede conectada ainda. Conecte Instagram, X, LinkedIn etc. no painel do Ayrshare (app.ayrshare.com).</div>' : ''));
+
+  mount.innerHTML = `
+    <div class="social">
+      <div class="so-status">
+        <span class="so-badge ${status.ayrshare ? 'ok' : 'off'}">Ayrshare ${status.ayrshare ? 'ativo' : 'inativo'}</span>
+        <span class="so-badge ${status.nvidia ? 'ok' : 'off'}">IA ${status.nvidia ? 'ativa' : 'inativa'}</span>
+        ${(status.connected || []).map((k) => `<span class="so-conn">${icon(SOCIAL_ICON[k] || 'spark')}${escapeHtml(byKey[k] ? byKey[k].label : k)}</span>`).join('')}
+        <a class="btn btn-ghost so-mini" href="https://app.ayrshare.com/social-accounts" target="_blank" rel="noopener noreferrer">Conectar redes</a>
+      </div>
+      ${cfgNote}
+
+      <div class="so-grid">
+        <div class="so-compose">
+          <label class="so-label">Conteúdo base</label>
+          <textarea id="soContent" rows="5" placeholder="Escreva a ideia central do post. A IA adapta para cada rede respeitando os limites."></textarea>
+
+          <label class="so-label">Mídia (URLs públicas https, separadas por espaço ou vírgula) — opcional</label>
+          <input id="soMedia" type="text" placeholder="https://… .jpg / .mp4">
+
+          <label class="so-label">Redes</label>
+          <div class="so-nets">${platforms.map(netChip).join('')}</div>
+
+          <div class="so-row">
+            <label class="so-label" style="margin:0">Tom</label>
+            <select id="soTone" class="crm-filter">${tomos.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+            <button class="btn btn-ghost" id="soAdapt">${icon('brain')} Adaptar por rede (IA)</button>
+          </div>
+
+          <div id="soVariants" class="so-variants"></div>
+
+          <div class="so-publish">
+            <input id="soWhen" type="datetime-local" class="crm-filter">
+            <button class="btn btn-ghost" id="soSchedule">${icon('clock')} Agendar</button>
+            <button class="btn btn-primary" id="soNow">${icon('send')} Publicar agora</button>
+          </div>
+          <div id="soMsg" class="so-msg"></div>
+        </div>
+
+        <div class="so-agenda">
+          <div class="so-agenda-head"><h3>Agenda de postagens</h3><button class="btn btn-ghost so-mini" id="soRefresh">${icon('spark')} Atualizar</button></div>
+          <div id="soList"></div>
+        </div>
+      </div>
+    </div>`;
+
+  const $ = (s) => mount.querySelector(s);
+  const msg = (text, kind) => { const el = $('#soMsg'); el.textContent = text || ''; el.className = 'so-msg' + (kind ? ' ' + kind : ''); };
+
+  // -- selecao de redes --
+  mount.querySelectorAll('.so-net').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.net;
+    if (selected.has(k)) selected.delete(k); else selected.add(k);
+    b.classList.toggle('on', selected.has(k));
+  }));
+
+  // -- editores de variantes (apos adaptar) --
+  function renderVariants() {
+    const cont = $('#soVariants');
+    const keys = Object.keys(variants);
+    if (!keys.length) { cont.innerHTML = ''; return; }
+    cont.innerHTML = `<div class="so-vhead">Versões por rede (edite à vontade)</div>` + keys.map((k) => {
+      const p = byKey[k] || { label: k, limit: 0 };
+      const v = variants[k] || '';
+      return `<div class="so-var" data-net="${k}">
+        <div class="so-var-top"><span class="so-var-name">${icon(SOCIAL_ICON[k] || 'spark')} ${escapeHtml(p.label)}</span><span class="so-count" data-for="${k}">${v.length}/${p.limit}</span></div>
+        <textarea class="so-var-text" data-net="${k}" rows="3">${escapeHtml(v)}</textarea>
+      </div>`;
+    }).join('');
+    cont.querySelectorAll('.so-var-text').forEach((ta) => ta.addEventListener('input', () => {
+      const k = ta.dataset.net; variants[k] = ta.value;
+      const c = cont.querySelector(`.so-count[data-for="${k}"]`); const lim = (byKey[k] || {}).limit || 0;
+      if (c) { c.textContent = `${ta.value.length}/${lim}`; c.classList.toggle('over', lim && ta.value.length > lim); }
+    }));
+  }
+
+  function collectMedia() {
+    return ($('#soMedia').value || '').split(/[\s,]+/).map((u) => u.trim()).filter((u) => /^https:\/\/\S+$/i.test(u));
+  }
+
+  // -- adaptar por IA --
+  $('#soAdapt').addEventListener('click', async () => {
+    const content = $('#soContent').value.trim();
+    const chosen = [...selected];
+    if (!content) return msg('Escreva o conteúdo base primeiro.', 'err');
+    if (!chosen.length) return msg('Selecione ao menos uma rede.', 'err');
+    if (busy) return; busy = true;
+    const b = $('#soAdapt'); b.disabled = true; b.textContent = 'Adaptando…'; msg('');
+    try {
+      const r = await adaptPosts({ content, platforms: chosen, tone: $('#soTone').value });
+      variants = r.variants || {};
+      renderVariants();
+      const miss = (r.missing || []).map((k) => (byKey[k] || {}).label || k);
+      msg(miss.length ? `Adaptado. Atenção: ${miss.join(', ')} não foi adaptado — revise manualmente.` : 'Textos adaptados. Revise e publique ou agende.', miss.length ? 'err' : 'ok');
+    } catch (e) { msg('Falha ao adaptar: ' + e.message, 'err'); }
+    finally { busy = false; b.disabled = false; b.innerHTML = `${icon('brain')} Adaptar por rede (IA)`; }
+  });
+
+  // -- publicar / agendar --
+  async function send(scheduleAt) {
+    const content = $('#soContent').value.trim();
+    const chosen = [...selected];
+    const mediaUrls = collectMedia();
+    if (!chosen.length) return msg('Selecione ao menos uma rede.', 'err');
+    if (!content && !mediaUrls.length) return msg('Escreva um conteúdo ou informe uma mídia.', 'err');
+    if (busy) return; busy = true;
+    const nowBtn = $('#soNow'), schBtn = $('#soSchedule');
+    nowBtn.disabled = schBtn.disabled = true; msg('Enviando…');
+    try {
+      const payload = { content, platforms: chosen, variants, tone: $('#soTone').value, mediaUrls };
+      if (scheduleAt) payload.scheduleAt = scheduleAt;
+      const r = await publishPosts(payload);
+      const okN = (r.targets || []).filter((t) => t.status === 'agendado' || t.status === 'publicado').length;
+      msg(`${scheduleAt ? 'Agendado' : 'Publicado'}: ${okN}/${(r.targets || []).length} rede(s).` + (r.status === 'parcial' || r.status === 'erro' ? ' Veja os detalhes na agenda.' : ''), r.status === 'erro' ? 'err' : 'ok');
+      posts = await getSocialPosts().catch(() => posts);
+      renderList();
+    } catch (e) { msg('Falha ao publicar: ' + e.message, 'err'); }
+    finally { busy = false; nowBtn.disabled = schBtn.disabled = false; }
+  }
+
+  $('#soNow').addEventListener('click', () => send(null));
+  $('#soSchedule').addEventListener('click', () => {
+    const v = $('#soWhen').value;
+    if (!v) return msg('Escolha a data/hora do agendamento.', 'err');
+    const ms = new Date(v).getTime();
+    if (!Number.isFinite(ms) || ms < Date.now() + 120000) return msg('O agendamento precisa ser ao menos 2 min no futuro.', 'err');
+    send(ms);
+  });
+
+  $('#soRefresh').addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    try { posts = await getSocialPosts(); agendaError = ''; renderList(); } catch (err) { msg('Falha ao atualizar agenda: ' + err.message, 'err'); }
+    finally { b.disabled = false; }
+  });
+
+  // -- agenda (lista de campanhas) --
+  function renderList() {
+    const list = $('#soList');
+    if (agendaError && !posts.length) { list.innerHTML = `<div class="so-empty" style="color:#ff6b6b">Não foi possível carregar a agenda: ${escapeHtml(agendaError)}</div>`; return; }
+    if (!posts.length) { list.innerHTML = '<div class="so-empty">Nenhuma postagem ainda. Crie a primeira ao lado.</div>'; return; }
+    list.innerHTML = posts.map((p) => {
+      const st = SOCIAL_STATUS[p.status] || SOCIAL_STATUS.pendente;
+      const when = p.scheduleAt ? `Agendado para ${fmtDate(p.scheduleAt)}` : fmtDate(p.createdAt);
+      const targets = Array.isArray(p.targets) ? p.targets : [];
+      const cancelable = targets.some((t) => t.status === 'agendado');
+      return `<div class="so-item">
+        <div class="so-item-top"><span class="so-tag" style="--tc:${st.c}">${st.l}</span><span class="so-when">${icon('clock')} ${when}</span></div>
+        <div class="so-item-body">${escapeHtml((p.content || '').slice(0, 160)) || '<i>(sem texto)</i>'}</div>
+        <div class="so-targets">${targets.map((t) => {
+          const ts = SOCIAL_STATUS[t.status] || SOCIAL_STATUS.pendente;
+          const lbl = (byKey[t.platform] || {}).label || t.platform;
+          const inner = `${icon(SOCIAL_ICON[t.platform] || 'spark')} ${escapeHtml(lbl)}`;
+          const href = safeUrl(t.permalink);
+          const body = href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>` : inner;
+          return `<span class="so-target" style="--tc:${ts.c}" title="${escapeHtml(t.error || ts.l)}">${body}</span>`;
+        }).join('')}</div>
+        ${cancelable ? `<div class="so-item-actions"><button class="btn btn-ghost so-mini so-cancel" data-id="${p.id}">Cancelar agendamento</button></div>` : ''}
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.so-cancel').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Cancelar esta campanha agendada nas redes?')) return;
+      b.disabled = true;
+      try { await cancelCampaign(b.dataset.id); posts = await getSocialPosts(); renderList(); }
+      catch (e) { b.disabled = false; alert('Falha ao cancelar: ' + e.message); }
+    }));
+  }
+
+  renderList();
 }
