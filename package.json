@@ -7,6 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "seed": "node scripts/seed-firestore.mjs",
+    "seed:docs": "node scripts/seed-firestore.mjs docs",
     "allow": "node scripts/seed-firestore.mjs",
     "knowledge:zip": "powershell -ExecutionPolicy Bypass -File scripts/package-vnmax-os.ps1"
   },
