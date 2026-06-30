@@ -1,16 +1,15 @@
 # Assistente VNMAX (NVIDIA NIM) + captura de leads (CRM)
 
 Backend que (1) responde/ajuda/agenda visitantes via **NVIDIA NIM** (chat),
-(2) recebe o **formulário de contato** do site e (3) publica/agenda nas redes
-sociais via **Ayrshare** com adaptação por rede via IA (aba **Social** do portal).
-Todo lead — do chat e do formulário — é gravado no **Firestore** (alimenta o CRM)
-com backup local em `data/leads.jsonl`. As chaves (NVIDIA/Ayrshare) ficam
-**somente** aqui (no `.env`) — nunca no frontend.
+(2) recebe o **formulário de contato** do site e (3) roda a aba **Social** do portal
+(sistema próprio self-hosted: rascunho → aprovação → publicar, com adaptação de
+texto por rede via IA). Todo lead — do chat e do formulário — é gravado no
+**Firestore** (alimenta o CRM) com backup local em `data/leads.jsonl`. A chave da
+NVIDIA fica **somente** aqui (no `.env`) — nunca no frontend.
 
 Endpoints públicos: `POST /api/chat`, `POST /api/contact`, `GET /api/health`.
 Endpoints privilegiados (exigem ID token Firebase de um membro da allowlist):
-`GET /api/social/status`, `POST /api/social/adapt`, `POST /api/social/publish`,
-`POST /api/social/cancel`.
+`GET /api/social/status`, `POST /api/social/{adapt,save,submit,approve,reject,markposted,delete}`.
 
 ## Requisitos
 - Node.js **18+**.
@@ -69,19 +68,21 @@ Quando o visitante pede contato/agendamento, o modelo chama a ferramenta
 `registrar_contato` e o pedido é gravado em `server/data/leads.jsonl`
 (uma linha JSON por contato). Plugue depois em e-mail/CRM/Firestore se quiser.
 
-## Redes sociais (aba Social)
-Defina no `.env` do servidor:
+## Redes sociais (aba Social) — sistema próprio self-hosted
+Sem SaaS de postagem. Fluxo: **rascunho → aguardando aprovação → aprovado/agendado →
+publicado** (o operador confirma a postagem). A IA adapta o texto por rede (X, Instagram,
+LinkedIn, TikTok, YouTube, Facebook, Threads, Bluesky, Pinterest, Reddit, Telegram,
+Google Business), respeitando limites. A publicação final é **semiautomática**: para as
+redes com URL de _intent_ (X, Threads, Bluesky, LinkedIn, Reddit, Telegram, Facebook), o
+portal abre a rede com o texto pronto; para as demais, copia o texto e abre o site. O
+operador então marca como publicado (e pode colar o link do post).
 ```
-AYRSHARE_API_KEY=...           # chave do Ayrshare (conecte as redes em app.ayrshare.com)
 NVIDIA_SOCIAL_MODEL=           # opcional: modelo dedicado p/ copy; vazio = usa NVIDIA_MODEL
 ```
-- Conecte Instagram, X, LinkedIn, TikTok, YouTube, Facebook, Threads, Bluesky,
-  Pinterest, Reddit, Telegram e Google Business no painel do Ayrshare (modo conta única).
-- A publicação/agendamento usa o `scheduleDate` nativo do Ayrshare (UTC). A agenda
-  (coleção Firestore `social_posts`) é **gravada só pelo servidor** (Admin SDK) e lida
-  pelos membros via allowlist. Publique a regra `social_posts` (`firestore.rules`) no console.
+- A agenda (coleção Firestore `social_posts`) é **gravada só pelo servidor** (Admin SDK)
+  e lida pelos membros via allowlist. Publique a regra `social_posts` (`firestore.rules`).
 - Os endpoints `/api/social/*` exigem `Authorization: Bearer <ID token Firebase>` de um
-  usuário presente em `allowlist/{uid}` — verificado no servidor (`requireMember`).
+  usuário em `allowlist/{uid}` — verificado no servidor (`requireMember`).
 
 ## Segurança
 - `NVIDIA_API_KEY` vive só no `.env` (gitignored, chmod 600). Nunca no bundle/frontend.

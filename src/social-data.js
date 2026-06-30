@@ -33,8 +33,13 @@ async function api(path, { method = 'GET', body } = {}) {
 
 export const socialStatus = () => api('status');
 export const adaptPosts = (payload) => api('adapt', { method: 'POST', body: payload });
-export const publishPosts = (payload) => api('publish', { method: 'POST', body: payload });
-export const cancelCampaign = (id) => api('cancel', { method: 'POST', body: { id } });
+// Fluxo self-hosted: rascunho -> aguardando -> aprovado/agendado -> publicado.
+export const saveCampaign = (payload) => api('save', { method: 'POST', body: payload });
+export const submitCampaign = (id) => api('submit', { method: 'POST', body: { id } });
+export const approveCampaign = (id) => api('approve', { method: 'POST', body: { id } });
+export const rejectCampaign = (id, reason) => api('reject', { method: 'POST', body: { id, reason } });
+export const markPosted = (id, platform, permalink, undo) => api('markposted', { method: 'POST', body: { id, platform, permalink, undo } });
+export const deleteCampaign = (id) => api('delete', { method: 'POST', body: { id } });
 
 // Agenda: le social_posts do Firestore (allowlist). Fallback sem indice composto.
 export async function getSocialPosts() {

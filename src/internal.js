@@ -8,7 +8,7 @@ import { logout } from './firebase.js';
 
 export { getInternalContent } from './internal-data.js';
 import { getInternalDocs, getLeads, updateLeadStage, addLeadEvent, updateLeadFields, deleteLead } from './internal-data.js';
-import { socialStatus, adaptPosts, publishPosts, cancelCampaign, getSocialPosts } from './social-data.js';
+import { socialStatus, adaptPosts, saveCampaign, submitCampaign, approveCampaign, rejectCampaign, markPosted, deleteCampaign, getSocialPosts } from './social-data.js';
 
 // Estagios do funil do CRM (NOVO -> ... -> FECHADO / PERDIDO).
 const STAGES = [
@@ -534,11 +534,29 @@ async function loadCrm(root) {
 /* ---------------- SOCIAL: composer multi-rede + adaptacao IA + agenda --------------- */
 const SOCIAL_ICON = { instagram: 'instagram', twitter: 'spark', linkedin: 'linkedin', facebook: 'megaphone', tiktok: 'tiktok', youtube: 'youtube', threads: 'spark', bluesky: 'bluesky', pinterest: 'tag', reddit: 'spark', telegram: 'send', gmb: 'tag' };
 const SOCIAL_STATUS = {
-  agendado: { l: 'Agendado', c: '#f5b73c' }, publicado: { l: 'Publicado', c: '#36d399' },
-  parcial: { l: 'Parcial', c: '#ff8a3d' }, erro: { l: 'Erro', c: '#ff4d4f' },
-  cancelado: { l: 'Cancelado', c: '#8a8a93' }, pendente: { l: 'Pendente', c: '#9b5cff' },
+  rascunho: { l: 'Rascunho', c: '#8a8a93', ord: 2 }, aguardando: { l: 'Aguardando aprovação', c: '#f5b73c', ord: 0 },
+  aprovado: { l: 'Aprovado · publicar', c: '#22d3ee', ord: 1 }, agendado: { l: 'Agendado', c: '#2f7bff', ord: 1 },
+  publicado: { l: 'Publicado', c: '#36d399', ord: 3 }, rejeitado: { l: 'Rejeitado', c: '#ff4d4f', ord: 2 },
 };
 const tomos = [['profissional', 'Profissional'], ['inspirador', 'Inspirador'], ['descontraido', 'Descontraído'], ['tecnico', 'Técnico'], ['vendedor', 'Persuasivo']];
+
+// "Abrir a rede com o texto pronto" (publicacao semiautomatica). Onde a rede tem
+// URL de intent/compose, prefil o texto; senao, abre o site para colar.
+function socialIntent(platform, caption, media) {
+  const t = encodeURIComponent(caption || '');
+  const u = (media && media[0]) ? encodeURIComponent(media[0]) : '';
+  switch (platform) {
+    case 'twitter': return `https://twitter.com/intent/tweet?text=${t}`;
+    case 'threads': return `https://www.threads.net/intent/post?text=${t}`;
+    case 'bluesky': return `https://bsky.app/intent/compose?text=${t}`;
+    case 'linkedin': return `https://www.linkedin.com/feed/?shareActive=true&text=${t}`;
+    case 'reddit': return `https://www.reddit.com/submit?title=${encodeURIComponent((caption || '').slice(0, 290))}`;
+    case 'telegram': return u ? `https://t.me/share/url?url=${u}&text=${t}` : 'https://web.telegram.org/';
+    case 'facebook': return u ? `https://www.facebook.com/sharer/sharer.php?u=${u}&quote=${t}` : 'https://www.facebook.com/';
+    default: return null;
+  }
+}
+const SOCIAL_SITE = { instagram: 'https://www.instagram.com/', tiktok: 'https://www.tiktok.com/upload', youtube: 'https://studio.youtube.com/', pinterest: 'https://www.pinterest.com/pin-builder/', gmb: 'https://business.google.com/posts', facebook: 'https://www.facebook.com/', telegram: 'https://web.telegram.org/', whatsapp: 'https://web.whatsapp.com/' };
 
 async function loadSocial(root) {
   const mount = root.querySelector('#socialMount');
@@ -556,37 +574,26 @@ async function loadSocial(root) {
 
   const platforms = status.platforms || [];
   const byKey = Object.fromEntries(platforms.map((p) => [p.key, p]));
-  const connected = new Set(status.connected || []);
   const selected = new Set();
   let variants = {};
   let busy = false;
+  let editId = null;     // id do rascunho em edicao (null = novo)
 
-  const netChip = (p) => {
-    const on = selected.has(p.key);
-    const conn = connected.has(p.key);
-    return `<button class="so-net${on ? ' on' : ''}" data-net="${p.key}" title="${conn ? 'Conectada' : 'Não conectada no Ayrshare'}${p.requiresMedia ? ' · exige mídia' : ''}">
+  const netChip = (p) => `<button class="so-net" data-net="${p.key}" title="${p.requiresMedia ? 'Exige imagem/vídeo' : ''}">
       <span class="so-net-ico">${icon(SOCIAL_ICON[p.key] || 'spark')}</span>${escapeHtml(p.label)}
-      ${conn ? '<span class="so-dot on"></span>' : '<span class="so-dot"></span>'}
     </button>`;
-  };
-
-  const cfgNote = !status.ayrshare
-    ? '<div class="so-warn">Ayrshare não configurado no servidor. Defina <b>AYRSHARE_API_KEY</b> no <code>.env</code> do servidor e conecte suas redes no painel do Ayrshare.</div>'
-    : (status.connectError ? `<div class="so-warn">Conectado ao Ayrshare, mas a leitura das redes falhou: ${escapeHtml(status.connectError)}</div>`
-      : (!connected.size ? '<div class="so-warn">Nenhuma rede conectada ainda. Conecte Instagram, X, LinkedIn etc. no painel do Ayrshare (app.ayrshare.com).</div>' : ''));
 
   mount.innerHTML = `
     <div class="social">
       <div class="so-status">
-        <span class="so-badge ${status.ayrshare ? 'ok' : 'off'}">Ayrshare ${status.ayrshare ? 'ativo' : 'inativo'}</span>
         <span class="so-badge ${status.nvidia ? 'ok' : 'off'}">IA ${status.nvidia ? 'ativa' : 'inativa'}</span>
-        ${(status.connected || []).map((k) => `<span class="so-conn">${icon(SOCIAL_ICON[k] || 'spark')}${escapeHtml(byKey[k] ? byKey[k].label : k)}</span>`).join('')}
-        <a class="btn btn-ghost so-mini" href="https://app.ayrshare.com/social-accounts" target="_blank" rel="noopener noreferrer">Conectar redes</a>
+        <span class="so-conn">${icon('layers') || ''}${platforms.length} redes</span>
+        <span class="so-hint">Fluxo: rascunho → aprovação → publicar (você confirma a postagem).</span>
       </div>
-      ${cfgNote}
 
       <div class="so-grid">
         <div class="so-compose">
+          <div class="so-compose-head"><strong id="soMode">Nova publicação</strong><button class="btn btn-ghost so-mini" id="soNew" hidden>+ Nova</button></div>
           <label class="so-label">Conteúdo base</label>
           <textarea id="soContent" rows="5" placeholder="Escreva a ideia central do post. A IA adapta para cada rede respeitando os limites."></textarea>
 
@@ -604,16 +611,17 @@ async function loadSocial(root) {
 
           <div id="soVariants" class="so-variants"></div>
 
+          <label class="so-label">Agendar (opcional) — define a data para publicar depois de aprovado</label>
           <div class="so-publish">
             <input id="soWhen" type="datetime-local" class="crm-filter">
-            <button class="btn btn-ghost" id="soSchedule">${icon('clock')} Agendar</button>
-            <button class="btn btn-primary" id="soNow">${icon('send')} Publicar agora</button>
+            <button class="btn btn-ghost" id="soDraft">${icon('doc')} Salvar rascunho</button>
+            <button class="btn btn-primary" id="soSubmit">${icon('send')} Enviar p/ aprovação</button>
           </div>
           <div id="soMsg" class="so-msg"></div>
         </div>
 
         <div class="so-agenda">
-          <div class="so-agenda-head"><h3>Agenda de postagens</h3><button class="btn btn-ghost so-mini" id="soRefresh">${icon('spark')} Atualizar</button></div>
+          <div class="so-agenda-head"><h3>Fluxo de publicação</h3><button class="btn btn-ghost so-mini" id="soRefresh">${icon('spark')} Atualizar</button></div>
           <div id="soList"></div>
         </div>
       </div>
@@ -623,11 +631,30 @@ async function loadSocial(root) {
   const msg = (text, kind) => { const el = $('#soMsg'); el.textContent = text || ''; el.className = 'so-msg' + (kind ? ' ' + kind : ''); };
 
   // -- selecao de redes --
+  function syncNetUI() { mount.querySelectorAll('.so-net').forEach((b) => b.classList.toggle('on', selected.has(b.dataset.net))); }
   mount.querySelectorAll('.so-net').forEach((b) => b.addEventListener('click', () => {
     const k = b.dataset.net;
     if (selected.has(k)) selected.delete(k); else selected.add(k);
     b.classList.toggle('on', selected.has(k));
   }));
+
+  // Carrega um rascunho/rejeitado no composer para edicao.
+  function editDraft(p) {
+    editId = p.id;
+    $('#soContent').value = p.content || '';
+    $('#soMedia').value = (p.mediaUrls || []).join(' ');
+    selected.clear(); (p.platforms || []).forEach((k) => selected.add(k)); syncNetUI();
+    variants = {}; (p.targets || []).forEach((t) => { variants[t.platform] = t.caption || ''; }); renderVariants();
+    $('#soWhen').value = p.scheduleAt ? new Date(p.scheduleAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
+    $('#soMode').textContent = 'Editando rascunho'; $('#soNew').hidden = false;
+    msg(''); mount.querySelector('.so-compose').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function clearComposer() {
+    editId = null; $('#soContent').value = ''; $('#soMedia').value = ''; $('#soWhen').value = '';
+    selected.clear(); syncNetUI(); variants = {}; renderVariants();
+    $('#soMode').textContent = 'Nova publicação'; $('#soNew').hidden = true; msg('');
+  }
+  $('#soNew').addEventListener('click', clearComposer);
 
   // -- editores de variantes (apos adaptar) --
   function renderVariants() {
@@ -671,72 +698,121 @@ async function loadSocial(root) {
     finally { busy = false; b.disabled = false; b.innerHTML = `${icon('brain')} Adaptar por rede (IA)`; }
   });
 
-  // -- publicar / agendar --
-  async function send(scheduleAt) {
+  // -- salvar rascunho / enviar para aprovacao --
+  async function refresh() { posts = await getSocialPosts().catch(() => posts); agendaError = ''; renderList(); }
+
+  async function saveDraft(submit) {
     const content = $('#soContent').value.trim();
     const chosen = [...selected];
     const mediaUrls = collectMedia();
     if (!chosen.length) return msg('Selecione ao menos uma rede.', 'err');
     if (!content && !mediaUrls.length) return msg('Escreva um conteúdo ou informe uma mídia.', 'err');
+    let scheduleAt = null;
+    const v = $('#soWhen').value;
+    if (v) { const ms = new Date(v).getTime(); if (!Number.isFinite(ms) || ms < Date.now() + 120000) return msg('O agendamento precisa ser ao menos 2 min no futuro.', 'err'); scheduleAt = ms; }
     if (busy) return; busy = true;
-    const nowBtn = $('#soNow'), schBtn = $('#soSchedule');
-    nowBtn.disabled = schBtn.disabled = true; msg('Enviando…');
+    const dBtn = $('#soDraft'), sBtn = $('#soSubmit'); dBtn.disabled = sBtn.disabled = true; msg('Salvando…');
     try {
       const payload = { content, platforms: chosen, variants, tone: $('#soTone').value, mediaUrls };
       if (scheduleAt) payload.scheduleAt = scheduleAt;
-      const r = await publishPosts(payload);
-      const okN = (r.targets || []).filter((t) => t.status === 'agendado' || t.status === 'publicado').length;
-      msg(`${scheduleAt ? 'Agendado' : 'Publicado'}: ${okN}/${(r.targets || []).length} rede(s).` + (r.status === 'parcial' || r.status === 'erro' ? ' Veja os detalhes na agenda.' : ''), r.status === 'erro' ? 'err' : 'ok');
-      posts = await getSocialPosts().catch(() => posts);
-      renderList();
-    } catch (e) { msg('Falha ao publicar: ' + e.message, 'err'); }
-    finally { busy = false; nowBtn.disabled = schBtn.disabled = false; }
+      if (editId) payload.id = editId;
+      const r = await saveCampaign(payload);
+      if (submit) await submitCampaign(r.id);
+      msg(submit ? 'Enviado para aprovação.' : 'Rascunho salvo.', 'ok');
+      clearComposer();
+      await refresh();
+    } catch (e) { msg('Falha ao salvar: ' + e.message, 'err'); }
+    finally { busy = false; dBtn.disabled = sBtn.disabled = false; }
   }
-
-  $('#soNow').addEventListener('click', () => send(null));
-  $('#soSchedule').addEventListener('click', () => {
-    const v = $('#soWhen').value;
-    if (!v) return msg('Escolha a data/hora do agendamento.', 'err');
-    const ms = new Date(v).getTime();
-    if (!Number.isFinite(ms) || ms < Date.now() + 120000) return msg('O agendamento precisa ser ao menos 2 min no futuro.', 'err');
-    send(ms);
-  });
+  $('#soDraft').addEventListener('click', () => saveDraft(false));
+  $('#soSubmit').addEventListener('click', () => saveDraft(true));
 
   $('#soRefresh').addEventListener('click', async (e) => {
     const b = e.currentTarget; b.disabled = true;
-    try { posts = await getSocialPosts(); agendaError = ''; renderList(); } catch (err) { msg('Falha ao atualizar agenda: ' + err.message, 'err'); }
+    try { await refresh(); } catch (err) { msg('Falha ao atualizar: ' + err.message, 'err'); }
     finally { b.disabled = false; }
   });
 
-  // -- agenda (lista de campanhas) --
+  // -- fluxo de publicacao (lista de campanhas por estado) --
+  const lbl = (k) => (byKey[k] || {}).label || k;
+  const findTarget = (id, net) => { const p = posts.find((x) => x.id === id); return p && (p.targets || []).find((t) => t.platform === net); };
+
   function renderList() {
     const list = $('#soList');
-    if (agendaError && !posts.length) { list.innerHTML = `<div class="so-empty" style="color:#ff6b6b">Não foi possível carregar a agenda: ${escapeHtml(agendaError)}</div>`; return; }
-    if (!posts.length) { list.innerHTML = '<div class="so-empty">Nenhuma postagem ainda. Crie a primeira ao lado.</div>'; return; }
-    list.innerHTML = posts.map((p) => {
-      const st = SOCIAL_STATUS[p.status] || SOCIAL_STATUS.pendente;
-      const when = p.scheduleAt ? `Agendado para ${fmtDate(p.scheduleAt)}` : fmtDate(p.createdAt);
+    if (agendaError && !posts.length) { list.innerHTML = `<div class="so-empty" style="color:#ff6b6b">Não foi possível carregar: ${escapeHtml(agendaError)}</div>`; return; }
+    if (!posts.length) { list.innerHTML = '<div class="so-empty">Nada ainda. Crie a primeira publicação ao lado.</div>'; return; }
+    const ordered = [...posts].sort((a, b) => {
+      const oa = (SOCIAL_STATUS[a.status] || {}).ord ?? 9, ob = (SOCIAL_STATUS[b.status] || {}).ord ?? 9;
+      return oa - ob || tsMs(b.updatedAt || b.createdAt) - tsMs(a.updatedAt || a.createdAt);
+    });
+    list.innerHTML = ordered.map((p) => {
+      const st = SOCIAL_STATUS[p.status] || { l: p.status, c: '#8a8a93' };
       const targets = Array.isArray(p.targets) ? p.targets : [];
-      const cancelable = targets.some((t) => t.status === 'agendado');
+      const when = p.scheduleAt ? `${p.scheduleAt > Date.now() ? 'Publicar em' : 'Era para'} ${fmtDate(p.scheduleAt)}` : fmtDate(p.createdAt);
+      const ready = p.status === 'aprovado' || p.status === 'agendado' || p.status === 'publicado';
+
+      const chips = targets.map((t) => {
+        const ok = t.posted ? ' done' : '';
+        const link = safeUrl(t.permalink);
+        const ic = `${icon(SOCIAL_ICON[t.platform] || 'spark')} ${escapeHtml(lbl(t.platform))}`;
+        return `<span class="so-target${ok}">${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${ic}</a>` : ic}${t.posted ? ' ✓' : ''}</span>`;
+      }).join('');
+
+      // Painel de publicacao semiautomatica (apenas quando aprovado/agendado).
+      const pub = ready ? `<div class="so-pub">${targets.map((t) => {
+        const intent = socialIntent(t.platform, t.caption, p.mediaUrls) || SOCIAL_SITE[t.platform] || null;
+        const openBtn = intent ? `<a class="btn btn-ghost so-mini" href="${escapeHtml(intent)}" target="_blank" rel="noopener noreferrer">Abrir ${escapeHtml(lbl(t.platform))}</a>` : '';
+        return `<div class="so-pub-row">
+          <span class="so-pub-net">${icon(SOCIAL_ICON[t.platform] || 'spark')} ${escapeHtml(lbl(t.platform))}</span>
+          <button class="btn btn-ghost so-mini so-copy" data-id="${p.id}" data-net="${t.platform}">Copiar texto</button>
+          ${openBtn}
+          ${t.posted
+            ? `<button class="btn btn-ghost so-mini so-unpost" data-id="${p.id}" data-net="${t.platform}">Reabrir</button>`
+            : `<button class="btn btn-ghost so-mini so-mark" data-id="${p.id}" data-net="${t.platform}">Marcar publicado</button>`}
+        </div>`;
+      }).join('')}</div>` : '';
+
+      // Acoes por estado.
+      let actions = '';
+      if (p.status === 'rascunho' || p.status === 'rejeitado') {
+        actions = `<button class="btn btn-ghost so-mini so-edit" data-id="${p.id}">Editar</button>
+          <button class="btn btn-ghost so-mini so-do-submit" data-id="${p.id}">Enviar p/ aprovação</button>
+          <button class="btn btn-ghost so-mini so-del" data-id="${p.id}">Excluir</button>`;
+      } else if (p.status === 'aguardando') {
+        actions = `<button class="btn btn-primary so-mini so-approve" data-id="${p.id}">Aprovar</button>
+          <button class="btn btn-ghost so-mini so-reject" data-id="${p.id}">Rejeitar</button>`;
+      } else {
+        actions = `<button class="btn btn-ghost so-mini so-del" data-id="${p.id}">Excluir</button>`;
+      }
+
       return `<div class="so-item">
-        <div class="so-item-top"><span class="so-tag" style="--tc:${st.c}">${st.l}</span><span class="so-when">${icon('clock')} ${when}</span></div>
-        <div class="so-item-body">${escapeHtml((p.content || '').slice(0, 160)) || '<i>(sem texto)</i>'}</div>
-        <div class="so-targets">${targets.map((t) => {
-          const ts = SOCIAL_STATUS[t.status] || SOCIAL_STATUS.pendente;
-          const lbl = (byKey[t.platform] || {}).label || t.platform;
-          const inner = `${icon(SOCIAL_ICON[t.platform] || 'spark')} ${escapeHtml(lbl)}`;
-          const href = safeUrl(t.permalink);
-          const body = href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>` : inner;
-          return `<span class="so-target" style="--tc:${ts.c}" title="${escapeHtml(t.error || ts.l)}">${body}</span>`;
-        }).join('')}</div>
-        ${cancelable ? `<div class="so-item-actions"><button class="btn btn-ghost so-mini so-cancel" data-id="${p.id}">Cancelar agendamento</button></div>` : ''}
+        <div class="so-item-top"><span class="so-tag" style="--tc:${st.c}">${escapeHtml(st.l)}</span><span class="so-when">${icon('clock')} ${escapeHtml(when)}</span></div>
+        <div class="so-item-body">${escapeHtml((p.content || '').slice(0, 200)) || '<i>(sem texto)</i>'}</div>
+        <div class="so-targets">${chips}</div>
+        ${p.status === 'rejeitado' && p.rejectReason ? `<div class="so-reject">Rejeitado: ${escapeHtml(p.rejectReason)}</div>` : ''}
+        ${p.approvedByEmail ? `<div class="so-meta">Aprovado por ${escapeHtml(p.approvedByEmail)}</div>` : ''}
+        ${pub}
+        <div class="so-item-actions">${actions}</div>
       </div>`;
     }).join('');
-    list.querySelectorAll('.so-cancel').forEach((b) => b.addEventListener('click', async () => {
-      if (!confirm('Cancelar esta campanha agendada nas redes?')) return;
-      b.disabled = true;
-      try { await cancelCampaign(b.dataset.id); posts = await getSocialPosts(); renderList(); }
-      catch (e) { b.disabled = false; alert('Falha ao cancelar: ' + e.message); }
+
+    // wiring
+    const act = async (el, fn, confirmMsg) => {
+      if (confirmMsg && !confirm(confirmMsg)) return;
+      el.disabled = true;
+      try { await fn(); await refresh(); } catch (e) { el.disabled = false; alert(e.message); }
+    };
+    list.querySelectorAll('.so-edit').forEach((b) => b.addEventListener('click', () => { const p = posts.find((x) => x.id === b.dataset.id); if (p) editDraft(p); }));
+    list.querySelectorAll('.so-do-submit').forEach((b) => b.addEventListener('click', () => act(b, () => submitCampaign(b.dataset.id))));
+    list.querySelectorAll('.so-approve').forEach((b) => b.addEventListener('click', () => act(b, () => approveCampaign(b.dataset.id))));
+    list.querySelectorAll('.so-reject').forEach((b) => b.addEventListener('click', () => { const r = prompt('Motivo da rejeição:'); if (r === null) return; act(b, () => rejectCampaign(b.dataset.id, r)); }));
+    list.querySelectorAll('.so-del').forEach((b) => b.addEventListener('click', () => act(b, () => deleteCampaign(b.dataset.id), 'Excluir esta campanha?')));
+    list.querySelectorAll('.so-mark').forEach((b) => b.addEventListener('click', () => { const url = prompt('Link do post publicado (opcional):') || ''; act(b, () => markPosted(b.dataset.id, b.dataset.net, url.trim() || null, false)); }));
+    list.querySelectorAll('.so-unpost').forEach((b) => b.addEventListener('click', () => act(b, () => markPosted(b.dataset.id, b.dataset.net, null, true))));
+    list.querySelectorAll('.so-copy').forEach((b) => b.addEventListener('click', async () => {
+      const t = findTarget(b.dataset.id, b.dataset.net); if (!t) return;
+      try { await navigator.clipboard.writeText(t.caption || ''); b.textContent = 'Copiado ✓'; setTimeout(() => { b.textContent = 'Copiar texto'; }, 1400); }
+      catch { alert('Não foi possível copiar. Selecione o texto manualmente.'); }
     }));
   }
 

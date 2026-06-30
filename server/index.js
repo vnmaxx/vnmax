@@ -7,7 +7,7 @@ import { chatCompletion } from './nvidia.js';
 import { tools, runTool } from './tools.js';
 import { buildSystemPrompt } from './prompt.js';
 import { saveLead, validarContato } from './leads.js';
-import { requireMember, handleStatus, handleAdapt, handlePublish, handleCancel } from './social.js';
+import { requireMember, handleStatus, handleAdapt, handleSave, handleSubmit, handleApprove, handleReject, handleMarkPosted, handleDelete } from './social.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.NVIDIA_API_KEY;
@@ -220,8 +220,12 @@ async function handleSocial(req, res, origin, ip, sub) {
         try { return json(res, 200, await handleAdapt(body, controller.signal), origin); }
         finally { clearTimeout(timeout); }
       }
-      if (sub === 'publish') return json(res, 200, await handlePublish(body, member), origin);
-      if (sub === 'cancel') return json(res, 200, await handleCancel(body, member), origin);
+      if (sub === 'save') return json(res, 200, await handleSave(body, member), origin);
+      if (sub === 'submit') return json(res, 200, await handleSubmit(body, member), origin);
+      if (sub === 'approve') return json(res, 200, await handleApprove(body, member), origin);
+      if (sub === 'reject') return json(res, 200, await handleReject(body, member), origin);
+      if (sub === 'markposted') return json(res, 200, await handleMarkPosted(body, member), origin);
+      if (sub === 'delete') return json(res, 200, await handleDelete(body, member), origin);
     }
     return json(res, 404, { error: 'Rota social não encontrada.' }, origin);
   } catch (e) {
