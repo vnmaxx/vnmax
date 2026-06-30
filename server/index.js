@@ -125,6 +125,8 @@ async function handleChat(req, res, origin, ip) {
   if (!messages || !messages.length) return json(res, 400, { error: 'Envie ao menos uma mensagem.' }, origin);
 
   const convo = [{ role: 'system', content: buildSystemPrompt() }, ...messages];
+  // Transcricao da conversa (para anexar ao lead, se virar contato).
+  const conversa = messages.map((m) => `${m.role === 'user' ? 'Visitante' : 'Assistente'}: ${m.content}`).join('\n').slice(0, 4000);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Number(process.env.REQUEST_TIMEOUT_MS || 60_000));
 
@@ -140,7 +142,7 @@ async function handleChat(req, res, origin, ip) {
       for (const tc of msg.tool_calls) {
         let args = {};
         try { args = JSON.parse(tc.function?.arguments || '{}'); } catch {}
-        const result = await runTool(tc.function?.name, args, { ip, origin });
+        const result = await runTool(tc.function?.name, args, { ip, origin, conversa });
         if (result.registered) registered = true;
         convo.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
       }

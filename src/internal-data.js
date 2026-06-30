@@ -45,14 +45,28 @@ export async function getLeads() {
   }
 }
 
-export async function updateLeadStatus(id, status) {
+export async function updateLeadStage(id, stage) {
   if (!db) throw new Error('Firebase nao configurado.');
-  await updateDoc(doc(db, 'leads', id), { status, updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, 'leads', id), {
+    stage,
+    updatedAt: serverTimestamp(),
+    historico: arrayUnion({ tipo: 'stage', texto: `Movido para ${stage}`, em: Date.now() }),
+  });
 }
 
-export async function addLeadNote(id, texto) {
+// Adiciona um evento ao historico/timeline (tipo: 'nota' | 'mensagem' | 'proposta' | ...).
+export async function addLeadEvent(id, tipo, texto) {
   if (!db) throw new Error('Firebase nao configurado.');
-  await updateDoc(doc(db, 'leads', id), { notas: arrayUnion({ texto, ts: Date.now() }), updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, 'leads', id), {
+    historico: arrayUnion({ tipo, texto, em: Date.now() }),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// Atualiza campos editaveis (segmento, observacao, contato, etc.).
+export async function updateLeadFields(id, fields) {
+  if (!db) throw new Error('Firebase nao configurado.');
+  await updateDoc(doc(db, 'leads', id), { ...fields, updatedAt: serverTimestamp() });
 }
 
 export async function deleteLead(id) {
