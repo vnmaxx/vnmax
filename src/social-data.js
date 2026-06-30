@@ -21,6 +21,10 @@ async function authHeaders() {
   return h;
 }
 
+/**
+ * @param {string} path
+ * @param {{ method?: string, body?: any }} [opts]
+ */
 async function api(path, { method = 'GET', body } = {}) {
   const res = await fetch(`${API_BASE}/api/social/${path}`, {
     method, headers: await authHeaders(), body: body ? JSON.stringify(body) : undefined,
@@ -50,6 +54,10 @@ export const connectManual = (payload) => api('connect/manual', { method: 'POST'
 export const disconnectAccount = (platform, clienteId) => api('disconnect', { method: 'POST', body: { platform, clienteId: clienteId || null } });
 
 /* ---- Vídeo (worker de edição) ---- */
+/**
+ * @param {string} path
+ * @param {{ method?: string, body?: any }} [opts]
+ */
 async function videoApi(path, { method = 'GET', body } = {}) {
   const res = await fetch(`${API_BASE}/api/video/${path}`, {
     method, headers: await authHeaders(), body: body ? JSON.stringify(body) : undefined,
@@ -72,7 +80,7 @@ export async function getVideoJobs() {
   } catch (e) {
     if (e && (e.code === 'permission-denied' || e.code === 'unauthenticated')) throw e;
     const snap = await getDocs(collection(db, 'video_jobs'));
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
+    return snap.docs.map((d) => (/** @type {Record<string, any>} */ ({ id: d.id, ...d.data() }))).sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
   }
 }
 
@@ -88,6 +96,6 @@ export async function getSocialPosts() {
     // indice degrada para o sort em memoria.
     if (e && (e.code === 'permission-denied' || e.code === 'unauthenticated')) throw e;
     const snap = await getDocs(collection(db, 'social_posts'));
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
+    return snap.docs.map((d) => (/** @type {Record<string, any>} */ ({ id: d.id, ...d.data() }))).sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
   }
 }

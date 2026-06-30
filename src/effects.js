@@ -6,6 +6,7 @@
 // Tudo so liga em ponteiro fino (mouse) e quando o usuario NAO pediu menos
 // movimento. Retorna um teardown para remover listeners/elementos.
 
+/** @param {Document|Element} root */
 export function installEffects(root = document) {
   const finePointer = window.matchMedia('(pointer: fine)').matches;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -56,7 +57,7 @@ export function installEffects(root = document) {
 
   // ---- 2. Spotlight + tilt 3D nos cards ------------------------------------
   const cards = Array.from(root.querySelectorAll('.card, .mv, .stat, .cta-band'));
-  cards.forEach((card) => {
+  cards.forEach((/** @type {HTMLElement} */ card) => {
     const onMove = (e) => {
       const r = card.getBoundingClientRect();
       const px = (e.clientX - r.left) / r.width;
@@ -84,7 +85,7 @@ export function installEffects(root = document) {
 
   // ---- 3. Efeito magnetico nos botoes primarios ----------------------------
   const magnets = Array.from(root.querySelectorAll('.btn-primary'));
-  magnets.forEach((btn) => {
+  magnets.forEach((/** @type {HTMLElement} */ btn) => {
     const onMove = (e) => {
       const r = btn.getBoundingClientRect();
       const mx = e.clientX - (r.left + r.width / 2);

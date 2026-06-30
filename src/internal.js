@@ -306,13 +306,13 @@ async function loadDocs(root) {
     mount.innerHTML = `
       <div class="docs-layout">
         <div class="docs-list">
-          ${docs.map((doc, i) => `<button class="doc-link${i === 0 ? ' active' : ''}" data-i="${i}">${icon('doc')} ${(doc.path || doc.id)}</button>`).join('')}
+          ${docs.map((/** @type {Record<string, any>} */ doc, i) => `<button class="doc-link${i === 0 ? ' active' : ''}" data-i="${i}">${icon('doc')} ${(doc.path || doc.id)}</button>`).join('')}
         </div>
         <div class="doc-view" id="docView"></div>
       </div>`;
     const view = mount.querySelector('#docView');
     const show = (i) => {
-      const docu = docs[i];
+      const docu = /** @type {Record<string, any>} */ (docs[i]);
       view.innerHTML = `<div class="doc-path">${docu.path || docu.id}</div><pre>${escapeHtml(docu.content || '')}</pre>`;
     };
     mount.querySelectorAll('.doc-link').forEach((b) => b.addEventListener('click', () => {

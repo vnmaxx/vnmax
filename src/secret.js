@@ -39,14 +39,14 @@ function buildModal() {
 }
 
 function openModal() {
-  let overlay = document.getElementById('loginOverlay');
+  let overlay = /** @type {any} */ (document.getElementById('loginOverlay'));
   if (!overlay) overlay = buildModal();
   modalOpen = true;
   overlay.classList.add('show');
 
   // Foca o campo so se o modal ainda estiver aberto quando o timer disparar.
   overlay._focusTimer = setTimeout(() => {
-    if (overlay.classList.contains('show')) overlay.querySelector('#loginEmail').focus();
+    if (overlay.classList.contains('show')) /** @type {HTMLElement} */ (overlay.querySelector('#loginEmail')).focus();
   }, 60);
 
   const onEsc = (e) => { if (e.key === 'Escape') closeModal(overlay); };

@@ -57,30 +57,30 @@ export function mountContact() {
 
   // Abre o formulario ao clicar em qualquer [data-contact] (sobrevive a re-render).
   document.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-contact]');
+    const t = /** @type {HTMLElement} */ (e.target).closest('[data-contact]');
     if (t) { e.preventDefault(); openContact(); }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeContact(); });
 }
 
 export function openContact() {
-  const overlay = document.getElementById('vnmax-contact');
+  const overlay = /** @type {any} */ (document.getElementById('vnmax-contact'));
   if (!overlay) return;
   if (overlay._resetTimer) { clearTimeout(overlay._resetTimer); overlay._resetTimer = null; }
   overlay.classList.add('show');
-  setTimeout(() => overlay.querySelector('#cf-nome')?.focus(), 60);
+  setTimeout(() => /** @type {HTMLElement} */ (overlay.querySelector('#cf-nome'))?.focus(), 60);
 }
 
 function closeContact() {
-  const overlay = document.getElementById('vnmax-contact');
+  const overlay = /** @type {any} */ (document.getElementById('vnmax-contact'));
   if (!overlay || !overlay.classList.contains('show')) return;   // ja fechado: no-op
   overlay.classList.remove('show');
   // reset depois da animacao — cancelado se reabrir antes
   overlay._resetTimer = setTimeout(() => {
     overlay._resetTimer = null;
     if (overlay.classList.contains('show')) return;              // reaberto: nao reseta
-    const form = overlay.querySelector('#cformForm');
-    const ok = overlay.querySelector('#cformSuccess');
+    const form = /** @type {HTMLFormElement} */ (overlay.querySelector('#cformForm'));
+    const ok = /** @type {HTMLElement} */ (overlay.querySelector('#cformSuccess'));
     if (form && ok) { form.hidden = false; ok.hidden = true; form.reset(); overlay.querySelector('#cformError').textContent = ''; }
   }, 200);
 }
@@ -89,9 +89,9 @@ async function submit(e) {
   e.preventDefault();
   if (sending) return;
   const overlay = document.getElementById('vnmax-contact');
-  const form = overlay.querySelector('#cformForm');
+  const form = /** @type {HTMLFormElement} */ (overlay.querySelector('#cformForm'));
   const errEl = overlay.querySelector('#cformError');
-  const btn = overlay.querySelector('#cformSubmit');
+  const btn = /** @type {HTMLButtonElement} */ (overlay.querySelector('#cformSubmit'));
   errEl.textContent = '';
 
   const data = Object.fromEntries(new FormData(form).entries());
@@ -106,7 +106,7 @@ async function submit(e) {
     const j = await res.json().catch(() => ({}));
     if (!res.ok) { errEl.textContent = j.error || 'Não foi possível enviar agora. Tente novamente ou escreva para vnmax6@gmail.com.'; return; }
     form.hidden = true;
-    overlay.querySelector('#cformSuccess').hidden = false;
+    /** @type {HTMLElement} */ (overlay.querySelector('#cformSuccess')).hidden = false;
   } catch (err) {
     errEl.textContent = 'Sem conexão no momento. Tente novamente ou escreva para vnmax6@gmail.com.';
   } finally {

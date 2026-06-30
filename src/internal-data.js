@@ -15,7 +15,7 @@ export async function getInternalContent() {
   const snap = await getDoc(doc(db, 'internal', 'content'));
   if (!snap.exists()) {
     const err = new Error('Conteudo interno nao encontrado.');
-    err.code = 'not-found';
+    /** @type {any} */ (err).code = 'not-found';
     throw err;
   }
   return snap.data();
@@ -25,7 +25,7 @@ export async function getInternalContent() {
 export async function getInternalDocs() {
   if (!db) throw new Error('Firebase nao configurado.');
   const snap = await getDocs(collection(db, 'internal_docs'));
-  const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const docs = snap.docs.map((d) => (/** @type {Record<string, any>} */ ({ id: d.id, ...d.data() })));
   docs.sort((a, b) => (a.path || '').localeCompare(b.path || ''));
   return docs;
 }
@@ -41,7 +41,7 @@ export async function getLeads() {
   } catch (e) {
     if (e && e.code !== 'failed-precondition') throw e; // propaga erros reais (permissao, rede)
     const snap = await getDocs(collection(db, 'leads'));
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
+    return snap.docs.map((d) => (/** @type {Record<string, any>} */ ({ id: d.id, ...d.data() }))).sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
   }
 }
 

@@ -35,19 +35,23 @@ export function loginFormHtml({ cancelLabel = 'Cancelar' } = {}) {
 
 // Liga o submit do formulario. onSuccess() roda apos o login resolver; onCancel()
 // no botao ghost. O firebase so e baixado quando o usuario realmente envia.
+/**
+ * @param {Element|Document} root
+ * @param {{ onSuccess?: () => void, onCancel?: () => void }} [opts]
+ */
 export function bindLoginForm(root, { onSuccess, onCancel } = {}) {
   const form = root.querySelector('#loginForm');
   if (!form) return;
   const errEl = root.querySelector('#loginError');
-  const submitBtn = root.querySelector('#loginSubmit');
+  const submitBtn = /** @type {HTMLButtonElement} */ (root.querySelector('#loginSubmit'));
   const cancelBtn = root.querySelector('#loginCancel');
   if (cancelBtn && onCancel) cancelBtn.addEventListener('click', onCancel);
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errEl.textContent = '';
-    const email = root.querySelector('#loginEmail').value;
-    const pass = root.querySelector('#loginPass').value;
+    const email = /** @type {HTMLInputElement} */ (root.querySelector('#loginEmail')).value;
+    const pass = /** @type {HTMLInputElement} */ (root.querySelector('#loginPass')).value;
     if (!email || !pass) { errEl.textContent = 'Preencha e-mail e senha.'; return; }
 
     submitBtn.disabled = true;
