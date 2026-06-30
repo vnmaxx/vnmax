@@ -41,6 +41,33 @@ export const rejectCampaign = (id, reason) => api('reject', { method: 'POST', bo
 export const markPosted = (id, platform, permalink, undo) => api('markposted', { method: 'POST', body: { id, platform, permalink, undo } });
 export const deleteCampaign = (id) => api('delete', { method: 'POST', body: { id } });
 
+/* ---- Vídeo (worker de edição) ---- */
+async function videoApi(path, { method = 'GET', body } = {}) {
+  const res = await fetch(`${API_BASE}/api/video/${path}`, {
+    method, headers: await authHeaders(), body: body ? JSON.stringify(body) : undefined,
+  });
+  let data = {};
+  try { data = await res.json(); } catch {}
+  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+  return data;
+}
+export const videoTools = () => videoApi('tools');
+export const createVideoJob = (payload) => videoApi('create', { method: 'POST', body: payload });
+export const deleteVideoJob = (id) => videoApi('delete', { method: 'POST', body: { id } });
+
+export async function getVideoJobs() {
+  if (!db) throw new Error('Firebase não configurado.');
+  const toMs = (ts) => (ts && ts.toDate ? ts.toDate().getTime() : ts && ts.seconds ? ts.seconds * 1000 : typeof ts === 'number' ? ts : 0);
+  try {
+    const snap = await getDocs(query(collection(db, 'video_jobs'), orderBy('createdAt', 'desc'), qlimit(50)));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    if (e && (e.code === 'permission-denied' || e.code === 'unauthenticated')) throw e;
+    const snap = await getDocs(collection(db, 'video_jobs'));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
+  }
+}
+
 // Agenda: le social_posts do Firestore (allowlist). Fallback sem indice composto.
 export async function getSocialPosts() {
   if (!db) throw new Error('Firebase não configurado.');

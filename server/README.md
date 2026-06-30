@@ -84,6 +84,32 @@ NVIDIA_SOCIAL_MODEL=           # opcional: modelo dedicado p/ copy; vazio = usa 
 - Os endpoints `/api/social/*` exigem `Authorization: Bearer <ID token Firebase>` de um
   usuário em `allowlist/{uid}` — verificado no servidor (`requireMember`).
 
+## Edição de vídeo (aba Vídeo) — worker FFmpeg-only (leve)
+Worker self-hosted que edita vídeo em background **só com FFmpeg** (binário do pacote
+npm `ffmpeg-static`, ~80MB) — **sem Chrome, sem root, sem yt-dlp/whisper/claude**, para
+não sufocar o servidor. Faz o essencial de "cortes/montagens": entrada (arquivo no inbox
+ou URL https) → **9:16**, **normaliza áudio (-14 LUFS)**, color grade, **queima legendas
+do roteiro (ASS)** e uma **intro de marca** (title card via libass). O resultado vira
+mídia pronta para a aba Social.
+```bash
+cd server
+bash install-video.sh          # npm install (ffmpeg-static) + cria diretorios
+# no .env: VIDEO_WORKER_ENABLED=true  e  VIDEO_PUBLIC_BASE=<url publica do servidor>
+sudo systemctl restart vnmax-assistant
+```
+- Endpoints (membro/dono): `GET /api/video/{tools,list}`, `POST /api/video/{create,get,delete}`.
+  O MP4 finalizado é servido em `GET /video/output/<arquivo>` (nome aleatório, com Range).
+- Jobs ficam em `video_jobs` (Firestore, escrita só pelo servidor; leitura escopada ao dono).
+  Concorrência 1 e limpeza do diretório ao final — leve no disco/RAM.
+- **Segurança**: processos via `spawn(bin, [args])` (sem shell → sem injeção); entradas e
+  caminhos validados (anti path traversal); download com **anti-SSRF** (bloqueia IPs
+  internos/metadata + allowlist opcional) e teto de tamanho.
+- **HyperFrames** ([heygen-com/hyperframes](https://github.com/heygen-com/hyperframes)) e
+  **video-use** ([browser-use/video-use](https://github.com/browser-use/video-use)) ficam no
+  **caminho local/assistido** (pesados — Chrome/uv): rode-os na sua máquina e suba o
+  resultado pelo inbox. A composição de intro (`server/video/hyperframes-intro/`) e os
+  briefings (`server/video/bin/*.sh`) são a referência desse caminho.
+
 ## Segurança
 - `NVIDIA_API_KEY` vive só no `.env` (gitignored, chmod 600). Nunca no bundle/frontend.
 - **CORS não é autenticação.** `ALLOWED_ORIGINS` (defesa em profundidade) bloqueia o navegador de terceiros, mas clientes não-browser podem omitir o `Origin`. Em produção, a barreira real contra abuso/custo é a combinação: `TRUST_PROXY` + rate limit + `APP_TOKEN` opcional + **teto de cota/billing na conta NVIDIA**.

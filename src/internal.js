@@ -9,6 +9,7 @@ import { logout } from './firebase.js';
 export { getInternalContent } from './internal-data.js';
 import { getInternalDocs, getLeads, updateLeadStage, addLeadEvent, updateLeadFields, deleteLead } from './internal-data.js';
 import { socialStatus, adaptPosts, saveCampaign, submitCampaign, approveCampaign, rejectCampaign, markPosted, deleteCampaign, getSocialPosts } from './social-data.js';
+import { videoTools, createVideoJob, deleteVideoJob, getVideoJobs } from './social-data.js';
 
 // Estagios do funil do CRM (NOVO -> ... -> FECHADO / PERDIDO).
 const STAGES = [
@@ -83,6 +84,7 @@ export function renderInternal(user, content) {
           <button class="tab active" data-tab="inst">Institucional</button>
           <button class="tab" data-tab="crm">CRM</button>
           <button class="tab" data-tab="social">Social</button>
+          <button class="tab" data-tab="video">Vídeo</button>
           <button class="tab" data-tab="eco">Ecossistema</button>
           <button class="tab" data-tab="road">Roadmap</button>
           <button class="tab" data-tab="estr">Estratégia</button>
@@ -129,6 +131,18 @@ export function renderInternal(user, content) {
         <p class="lead">Escreva uma vez, adapte para cada rede com IA e publique ou agende em todas as redes do Ayrshare. A agenda mostra o que está programado e o que já foi publicado.</p>
         <div id="socialMount">
           <div style="display:flex;align-items:center;gap:12px;color:var(--text-dim);padding:30px 0"><span class="spinner"></span> Carregando central de publicação…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VÍDEO -->
+    <section class="panel hidden" data-panel="video">
+      <div class="wrap" style="max-width:none">
+        <span class="eyebrow">Vídeo · Edição automatizada</span>
+        <h2 class="section-title">Editor de vídeo (worker)</h2>
+        <p class="lead">Envie um vídeo (URL ou arquivo no inbox do servidor) com instruções. O worker corta, aplica color grade, legendas e intro de marca (hyperframes), e a edição inteligente (video-use) quando disponível. O resultado vira mídia pronta para a aba Social.</p>
+        <div id="videoMount">
+          <div style="display:flex;align-items:center;gap:12px;color:var(--text-dim);padding:30px 0"><span class="spinner"></span> Carregando editor…</div>
         </div>
       </div>
     </section>
@@ -254,6 +268,7 @@ export function bindInternal(root, onLogout) {
   let docsLoaded = false;
   let crmLoaded = false;
   let socialLoaded = false;
+  let videoLoaded = false;
 
   const activate = (target) => {
     tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === target));
@@ -262,6 +277,7 @@ export function bindInternal(root, onLogout) {
     if (target === 'docs' && !docsLoaded) { docsLoaded = true; loadDocs(root); }
     if (target === 'crm' && !crmLoaded) { crmLoaded = true; loadCrm(root); }
     if (target === 'social' && !socialLoaded) { socialLoaded = true; loadSocial(root); }
+    if (target === 'video' && !videoLoaded) { videoLoaded = true; loadVideo(root); }
   };
   tabs.forEach((tab) => tab.addEventListener('click', () => activate(tab.dataset.tab)));
 
@@ -817,4 +833,142 @@ async function loadSocial(root) {
   }
 
   renderList();
+}
+
+/* ---------------- VÍDEO: worker de edição (video-use + hyperframes) --------------- */
+const VIDEO_STATUS = {
+  fila: { l: 'Na fila', c: '#f5b73c' }, processando: { l: 'Processando', c: '#2f7bff' },
+  pronto: { l: 'Pronto', c: '#36d399' }, erro: { l: 'Erro', c: '#ff4d4f' },
+};
+
+async function loadVideo(root) {
+  const mount = root.querySelector('#videoMount');
+  if (!mount) return;
+
+  let caps, jobs = [], pollT = null;
+  try { caps = await videoTools(); }
+  catch (err) {
+    mount.innerHTML = `<p style="color:#ff6b6b;margin-bottom:12px">Não foi possível conectar ao servidor de vídeo: ${escapeHtml(err.message || '')}</p><button class="btn btn-ghost" id="viRetry">Tentar de novo</button>`;
+    mount.querySelector('#viRetry').addEventListener('click', () => loadVideo(root));
+    return;
+  }
+  let jobsError = '';
+  try { jobs = await getVideoJobs(); } catch (e) { jobsError = e.message || 'Falha ao carregar os jobs.'; }
+
+  const can = caps.can || {};
+  const cap = (k, label) => `<span class="so-badge ${can[k] ? 'ok' : 'off'}">${label} ${can[k] ? '✓' : '—'}</span>`;
+
+  mount.innerHTML = `
+    <div class="social">
+      <div class="so-status">
+        <span class="so-badge ${can.worker ? 'ok' : 'off'}">Worker ${can.worker ? 'ativo' : 'inativo'}</span>
+        ${cap('vertical', '9:16')}${cap('normalize', 'Áudio -14 LUFS')}${cap('color', 'Color')}${cap('subtitles', 'Legendas')}${cap('intro', 'Intro')}
+      </div>
+      ${!can.worker ? '<div class="so-warn">Worker desativado. No servidor: <code>cd server && npm install && bash install-video.sh</code>, ative <b>VIDEO_WORKER_ENABLED=true</b> no <code>.env</code> e reinicie. Você pode criar jobs mesmo assim — ficam na fila.</div>' : ''}
+
+      <div class="so-grid">
+        <div class="so-compose">
+          <div class="so-compose-head"><strong>Novo vídeo</strong></div>
+          <label class="so-label">Origem</label>
+          <div class="so-row">
+            <select id="viType" class="crm-filter"><option value="url">URL (https)</option><option value="inbox">Arquivo no inbox do servidor</option></select>
+            <input id="viValue" type="text" placeholder="https://… ou nome-do-arquivo.mp4" style="flex:1;min-width:200px">
+          </div>
+
+          <label class="so-label">Roteiro / legendas (vira legenda queimada se marcar “Legendas”)</label>
+          <textarea id="viRoteiro" rows="3" placeholder="Cole o roteiro/locução. Será fatiado e cronometrado como legenda no vídeo."></textarea>
+
+          <label class="so-label">Opções (FFmpeg — leve, sem Chrome)</label>
+          <div class="vi-opts">
+            <label><input type="checkbox" id="viVertical" checked> Formato 9:16 (vertical)</label>
+            <label><input type="checkbox" id="viNormalize" checked> Normalizar áudio (-14 LUFS)</label>
+            <label><input type="checkbox" id="viSubs"> Queimar legendas</label>
+            <label><input type="checkbox" id="viIntro"> Intro de marca</label>
+            <label>Color: <select id="viColor" class="crm-filter"><option value="none">Nenhum</option><option value="cinematic">Cinematográfico</option><option value="neutral">Neutro</option></select></label>
+          </div>
+          <div class="so-row" id="viIntroFields" hidden>
+            <input id="viIntroTitle" type="text" placeholder="Título da intro (ex.: VN MAX)" style="flex:1">
+            <input id="viIntroSub" type="text" placeholder="Subtítulo" style="flex:1">
+          </div>
+
+          <div class="so-publish">
+            <button class="btn btn-primary" id="viSubmit">${icon('send')} Enviar para edição</button>
+          </div>
+          <div id="viMsg" class="so-msg"></div>
+        </div>
+
+        <div class="so-agenda">
+          <div class="so-agenda-head"><h3>Jobs</h3><button class="btn btn-ghost so-mini" id="viRefresh">${icon('spark')} Atualizar</button></div>
+          <div id="viList"></div>
+        </div>
+      </div>
+    </div>`;
+
+  const $ = (s) => mount.querySelector(s);
+  const msg = (t, k) => { const el = $('#viMsg'); el.textContent = t || ''; el.className = 'so-msg' + (k ? ' ' + k : ''); };
+  $('#viIntro').addEventListener('change', (e) => { $('#viIntroFields').hidden = !e.target.checked; });
+
+  async function refresh() {
+    try { jobs = await getVideoJobs(); jobsError = ''; } catch (e) { jobsError = e.message; }
+    renderJobs();
+    const active = jobs.some((j) => j.status === 'fila' || j.status === 'processando');
+    if (active && !pollT) pollT = setInterval(refresh, 5000);
+    if (!active && pollT) { clearInterval(pollT); pollT = null; }
+  }
+
+  $('#viSubmit').addEventListener('click', async () => {
+    const type = $('#viType').value, value = $('#viValue').value.trim();
+    if (!value) return msg('Informe a URL ou o nome do arquivo.', 'err');
+    const b = $('#viSubmit'); b.disabled = true; msg('Enviando…');
+    try {
+      await createVideoJob({
+        source: { type, value },
+        options: {
+          vertical: $('#viVertical').checked, normalize: $('#viNormalize').checked,
+          subtitles: $('#viSubs').checked, intro: $('#viIntro').checked,
+          color: $('#viColor').value, roteiro: $('#viRoteiro').value.trim(),
+          introTitle: $('#viIntroTitle').value.trim(), introSubtitle: $('#viIntroSub').value.trim(),
+        },
+      });
+      $('#viValue').value = ''; $('#viRoteiro').value = '';
+      msg('Job criado.', 'ok');
+      await refresh();
+    } catch (e) { msg('Falha: ' + e.message, 'err'); }
+    finally { b.disabled = false; }
+  });
+
+  $('#viRefresh').addEventListener('click', async (e) => { e.currentTarget.disabled = true; try { await refresh(); } finally { e.currentTarget.disabled = false; } });
+
+  function renderJobs() {
+    const list = $('#viList');
+    if (jobsError && !jobs.length) { list.innerHTML = `<div class="so-empty" style="color:#ff6b6b">${escapeHtml(jobsError)}</div>`; return; }
+    if (!jobs.length) { list.innerHTML = '<div class="so-empty">Nenhum job ainda.</div>'; return; }
+    list.innerHTML = jobs.map((j) => {
+      const st = VIDEO_STATUS[j.status] || { l: j.status, c: '#8a8a93' };
+      const url = safeUrl(j.outputUrl);
+      const notes = Array.isArray(j.notes) ? j.notes : [];
+      return `<div class="so-item">
+        <div class="so-item-top"><span class="so-tag" style="--tc:${st.c}">${escapeHtml(st.l)}</span><span class="so-when">${icon('clock')} ${fmtDate(j.createdAt)}</span></div>
+        <div class="so-item-body">${escapeHtml(((j.source && j.source.value) || '').slice(0, 120))}${(j.options && j.options.roteiro) ? ' · ' + escapeHtml(j.options.roteiro.slice(0, 70)) : ''}</div>
+        ${j.status === 'processando' || j.status === 'fila' ? `<div class="so-meta">${escapeHtml(j.progress || '')}</div>` : ''}
+        ${j.status === 'erro' && j.error ? `<div class="so-reject">${escapeHtml(j.error)}</div>` : ''}
+        ${notes.length ? `<div class="so-meta">${notes.map((n) => escapeHtml(n)).join(' · ')}</div>` : ''}
+        ${url ? `<video class="vi-video" src="${escapeHtml(url)}" controls preload="metadata"></video>
+          <div class="so-item-actions"><button class="btn btn-ghost so-mini vi-use" data-url="${escapeHtml(url)}">Usar na aba Social</button>
+          <a class="btn btn-ghost so-mini" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" download>Baixar</a>
+          <button class="btn btn-ghost so-mini vi-del" data-id="${j.id}">Excluir</button></div>`
+          : `<div class="so-item-actions"><button class="btn btn-ghost so-mini vi-del" data-id="${j.id}">Excluir</button></div>`}
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.vi-del').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Excluir este job?')) return; b.disabled = true;
+      try { await deleteVideoJob(b.dataset.id); await refresh(); } catch (e) { b.disabled = false; alert(e.message); }
+    }));
+    list.querySelectorAll('.vi-use').forEach((b) => b.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(b.dataset.url); b.textContent = 'URL copiada ✓'; setTimeout(() => { b.textContent = 'Usar na aba Social'; }, 1600); }
+      catch { alert('URL: ' + b.dataset.url); }
+    }));
+  }
+
+  await refresh();
 }

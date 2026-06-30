@@ -3,11 +3,16 @@
 // ferramenta de agendamento e devolve a resposta. A chave da NVIDIA fica APENAS
 // aqui (no .env do servidor), nunca no frontend.
 import { createServer } from 'node:http';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { chatCompletion } from './nvidia.js';
 import { tools, runTool } from './tools.js';
 import { buildSystemPrompt } from './prompt.js';
 import { saveLead, validarContato } from './leads.js';
 import { requireMember, handleStatus, handleAdapt, handleSave, handleSubmit, handleApprove, handleReject, handleMarkPosted, handleDelete } from './social.js';
+import { handleVideoTools, handleVideoCreate, handleVideoList, handleVideoGet, handleVideoDelete } from './video.js';
+import { startWorker, resolveOutput } from './video/worker.js';
+import { claimNext } from './video/jobs.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.NVIDIA_API_KEY;
@@ -238,6 +243,54 @@ async function handleSocial(req, res, origin, ip, sub) {
   }
 }
 
+// Endpoints da aba Vídeo (edicao via worker). Tambem exigem membro da allowlist.
+async function handleVideo(req, res, origin, sub) {
+  let member;
+  try { member = await requireMember(req); }
+  catch (e) { return json(res, e.status || 401, { error: e.message }, origin); }
+  try {
+    if (req.method === 'GET' && sub === 'tools') return json(res, 200, await handleVideoTools(), origin);
+    if (req.method === 'GET' && sub === 'list') return json(res, 200, await handleVideoList(member), origin);
+    if (req.method === 'POST') {
+      let body;
+      try { body = JSON.parse(await readBody(req, 200_000) || '{}'); }
+      catch { return json(res, 400, { error: 'JSON inválido.' }, origin); }
+      if (sub === 'create') return json(res, 200, await handleVideoCreate(body, member), origin);
+      if (sub === 'get') return json(res, 200, await handleVideoGet(body, member), origin);
+      if (sub === 'delete') return json(res, 200, await handleVideoDelete(body, member), origin);
+    }
+    return json(res, 404, { error: 'Rota de vídeo não encontrada.' }, origin);
+  } catch (e) {
+    console.error('[video] erro:', e.message);
+    const aborted = e.name === 'AbortError';
+    if (aborted) return json(res, 504, { error: 'Tempo de resposta excedido. Tente novamente.' }, origin);
+    if (e.status) return json(res, e.status, { error: e.message }, origin);   // erros proprios (400/403/404/409…)
+    return json(res, 502, { error: 'Falha ao processar o vídeo. Tente novamente.' }, origin);  // nao vaza detalhe interno
+  }
+}
+
+// Serve um MP4 finalizado (publico, nome aleatorio; valida path traversal). Aceita
+// Range para o player/redes carregarem por partes.
+async function serveOutput(req, res, name) {
+  const path = resolveOutput(name);
+  if (!path) { res.writeHead(404); return res.end(); }
+  let st;
+  try { st = await stat(path); } catch { res.writeHead(404); return res.end(); }
+  const range = req.headers.range;
+  const headersBase = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=86400' };
+  if (range) {
+    const m = /bytes=(\d*)-(\d*)/.exec(range) || [];
+    let start = parseInt(m[1], 10); let end = parseInt(m[2], 10);
+    if (Number.isNaN(start)) start = 0;
+    if (Number.isNaN(end) || end >= st.size) end = st.size - 1;
+    if (start > end || start >= st.size) { res.writeHead(416, { 'Content-Range': `bytes */${st.size}` }); return res.end(); }
+    res.writeHead(206, { ...headersBase, 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Content-Length': end - start + 1 });
+    return createReadStream(path, { start, end }).pipe(res);
+  }
+  res.writeHead(200, { ...headersBase, 'Content-Length': st.size });
+  return createReadStream(path).pipe(res);
+}
+
 const server = createServer(async (req, res) => {
   const origin = corsOrigin(req.headers.origin);
   const ip = clientIp(req);
@@ -245,6 +298,17 @@ const server = createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { setCors(res, origin); res.writeHead(204); return res.end(); }
 
   if (req.method === 'GET' && req.url === '/api/health') return json(res, 200, { ok: true }, origin);
+
+  if ((req.method === 'GET' || req.method === 'HEAD') && req.url.startsWith('/video/output/')) {
+    return serveOutput(req, res, decodeURIComponent(req.url.replace('/video/output/', '').split('?')[0]));
+  }
+
+  if (req.url.startsWith('/api/video/')) {
+    if (!ALLOW_ANY && (!req.headers.origin || !origin)) return json(res, 403, { error: 'Origem não autorizada.' }, '');
+    if (rateLimited(ip)) return json(res, 429, { error: 'Muitas requisições. Aguarde.' }, origin);
+    const sub = req.url.split('?')[0].replace('/api/video/', '');
+    return handleVideo(req, res, origin, sub);
+  }
 
   if (req.url.startsWith('/api/social/')) {
     // Defesa em profundidade: Origin de navegador valido + rate limit. A auth
@@ -284,4 +348,5 @@ server.listen(PORT, () => {
   console.log(`[vnmax-assistant] origens: ${ALLOW_ANY ? '* (teste)' : (ALLOWED_ORIGINS.join(', ') || '(nenhuma)')} · token: ${APP_TOKEN ? 'on' : 'off'} · trustProxy: ${TRUST_PROXY}`);
   warmup();
   if (KEEPALIVE_MS > 0) setInterval(warmup, KEEPALIVE_MS).unref();
+  startWorker(claimNext);   // worker de video (so processa se VIDEO_WORKER_ENABLED=true)
 });

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<!-- Intro de marca VNMAX para o hyperframes (HTML -> MP4). O wrapper substitui
+     __TITLE__ / __SUBTITLE__. Duracao ~3s. Ajuste data-duration/fps conforme a sua
+     versao do hyperframes. -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1080px; overflow: hidden; background: #050505; font-family: 'Inter', system-ui, sans-serif; }
+  .stage { width: 1080px; height: 1080px; display: grid; place-items: center; position: relative;
+    background: radial-gradient(1200px 700px at 50% 0%, rgba(139,47,224,.22), transparent 62%); }
+  .wrap { text-align: center; }
+  .mark { font-size: 132px; font-weight: 800; letter-spacing: 2px; color: #f8fafc; opacity: 0; transform: translateY(26px) scale(.96);
+    animation: rise .9s cubic-bezier(.4,0,.2,1) .15s forwards; }
+  .mark .dv { background: linear-gradient(120deg,#8b2fe0,#9b5cff 55%,#c4a0ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { margin-top: 22px; font-size: 40px; color: #a1a1aa; opacity: 0; transform: translateY(18px);
+    animation: rise .9s cubic-bezier(.4,0,.2,1) .5s forwards; }
+  .bar { position: absolute; left: 50%; bottom: 150px; width: 0; height: 6px; transform: translateX(-50%); border-radius: 999px;
+    background: linear-gradient(90deg,#8b2fe0,#9b5cff); animation: grow 1.6s cubic-bezier(.4,0,.2,1) .6s forwards; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @keyframes grow { to { width: 420px; } }
+</style>
+</head>
+<body>
+  <div class="stage" data-duration="3" data-fps="30">
+    <div class="wrap">
+      <div class="mark">__TITLE__</div>
+      <div class="sub">__SUBTITLE__</div>
+    </div>
+    <div class="bar"></div>
+  </div>
+</body>
+</html>

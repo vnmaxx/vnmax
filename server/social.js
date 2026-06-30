@@ -5,9 +5,10 @@
 // texto") e o operador confirma. Inspirado no motor de conteudo/aprovacao do
 // studio-ia. Endpoints PRIVILEGIADOS: exigem ID token do Firebase de um membro da
 // allowlist. A NVIDIA_API_KEY (adaptacao) fica so aqui.
-import { db, auth, admin } from './firebase-admin.js';
+import { db, admin } from './firebase-admin.js';
 import { adaptContent } from './social/adapt.js';
 import { PLATFORMS, PLATFORM_KEYS, isPlatform } from './social/platforms.js';
+export { requireMember } from './auth.js';
 
 const COLLECTION = 'social_posts';
 
@@ -19,20 +20,6 @@ const EDITAVEIS = new Set(['rascunho', 'rejeitado']);   // estados em que o cont
 function safeUrl(u) {
   try { const url = new URL(String(u || '').trim()); return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : null; }
   catch { return null; }
-}
-
-// ---- Autenticacao: ID token do Firebase + allowlist ----
-export async function requireMember(req) {
-  if (!auth || !db) { const e = new Error('Servidor sem credenciais Firebase. Coloque serviceAccount.json em server/.'); e.status = 503; throw e; }
-  const h = req.headers['authorization'] || '';
-  const m = /^Bearer\s+(.+)$/i.exec(h);
-  if (!m) { const e = new Error('Não autenticado.'); e.status = 401; throw e; }
-  let decoded;
-  try { decoded = await auth.verifyIdToken(m[1].trim()); }
-  catch { const e = new Error('Sessão inválida ou expirada.'); e.status = 401; throw e; }
-  const snap = await db.collection('allowlist').doc(decoded.uid).get();
-  if (!snap.exists) { const e = new Error('Sua conta não tem acesso à área interna.'); e.status = 403; throw e; }
-  return { uid: decoded.uid, email: decoded.email || null };
 }
 
 function platformsPublic() {
@@ -143,15 +130,19 @@ export async function handleMarkPosted(body, member) {
   if (!['aprovado', 'agendado', 'publicado'].includes(data.status)) { const e = new Error('Aprove a campanha antes de publicar.'); e.status = 409; throw e; }
   const platform = String(body?.platform || '');
   const undo = Boolean(body?.undo);
-  const permalink = safeUrl(body?.permalink);
+  // Distingue "permalink ausente" (preserva o salvo) de "permalink invalido" (erro).
+  const rawLink = (body?.permalink == null) ? '' : String(body.permalink).trim();
+  const permalink = rawLink ? safeUrl(rawLink) : null;
+  if (!undo && rawLink && !permalink) { const e = new Error('Permalink inválido: use http(s)://'); e.status = 400; throw e; }
   const targets = Array.isArray(data.targets) ? data.targets : [];
   const t = targets.find((x) => x.platform === platform);
   if (!t) { const e = new Error('Rede não faz parte desta campanha.'); e.status = 400; throw e; }
-  t.posted = !undo;
-  t.permalink = undo ? null : permalink;
-  t.postedAt = undo ? null : Date.now();
+  if (undo) { t.posted = false; t.permalink = null; t.postedAt = null; }
+  else { t.posted = true; if (permalink) t.permalink = permalink; t.postedAt = Date.now(); }  // so sobrescreve com link novo valido
   const allPosted = targets.length > 0 && targets.every((x) => x.posted);
-  const status = allPosted ? 'publicado' : (data.status === 'publicado' ? 'aprovado' : data.status);
+  // Ao reverter de 'publicado', recompoe o estado base a partir do agendamento.
+  const base = (data.scheduleAt && data.scheduleAt > Date.now()) ? 'agendado' : 'aprovado';
+  const status = allPosted ? 'publicado' : (data.status === 'publicado' ? base : data.status);
   await ref.update({ targets, status, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
   return { id: ref.id, status, targets };
 }
