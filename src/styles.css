@@ -336,3 +336,55 @@ img { max-width: 100%; display: block; }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .wordmark .max, .hero h1 .accent, .stat .v { color: transparent; }
 }
+
+/* ----- chat widget ----- */
+.vnchat { position: fixed; right: 20px; bottom: 20px; z-index: 70; }
+.vnchat-hidden { display: none; }
+.vnchat-launch {
+  width: 58px; height: 58px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--grad); color: #fff; display: grid; place-items: center;
+  box-shadow: 0 10px 30px -6px var(--accent-glow), 0 4px 14px rgba(0,0,0,0.4);
+  transition: transform var(--t) var(--ease), box-shadow var(--t);
+}
+.vnchat-launch:hover { transform: translateY(-2px) scale(1.04); }
+.vnchat-launch.hidden { display: none; }
+.vnchat-launch-ico svg { width: 26px; height: 26px; }
+.vnchat-panel {
+  position: fixed; right: 20px; bottom: 20px; width: 380px; max-width: calc(100vw - 32px);
+  height: 560px; max-height: calc(100vh - 40px); display: none; flex-direction: column;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 24px 60px -12px rgba(0,0,0,0.6); transform: translateY(10px); opacity: 0;
+  transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
+}
+.vnchat-panel.open { display: flex; opacity: 1; transform: none; }
+.vnchat-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(155,92,255,0.12), transparent); }
+.vnchat-id { display: flex; align-items: center; gap: 11px; }
+.vnchat-avatar { width: 36px; height: 36px; border-radius: 10px; background: var(--grad); color: #fff; display: grid; place-items: center; }
+.vnchat-avatar svg { width: 19px; height: 19px; }
+.vnchat-id strong { font-size: 14.5px; display: block; }
+.vnchat-status { font-size: 11.5px; color: #36d399; display: inline-flex; align-items: center; gap: 6px; }
+.vnchat-status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #36d399; }
+.vnchat-close { background: none; border: none; color: var(--text-dim); font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px; transition: color var(--t); }
+.vnchat-close:hover { color: var(--text); }
+.vnchat-msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.vnchat-msg { display: flex; }
+.vnchat-msg.user { justify-content: flex-end; }
+.vnchat-bubble { max-width: 84%; padding: 10px 13px; border-radius: 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+.vnchat-msg.bot .vnchat-bubble { background: var(--graphite); color: var(--text); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.vnchat-msg.user .vnchat-bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+.vnchat-note { align-self: center; font-size: 12px; color: #36d399; background: rgba(54,211,153,0.1); border: 1px solid rgba(54,211,153,0.25); padding: 5px 12px; border-radius: 999px; }
+.vnchat-dots { display: inline-flex; gap: 4px; }
+.vnchat-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); animation: vndot 1s infinite ease-in-out; }
+.vnchat-dots i:nth-child(2) { animation-delay: 0.15s; }
+.vnchat-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes vndot { 0%, 80%, 100% { opacity: 0.3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.vnchat-input { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
+.vnchat-input input { flex: 1; padding: 11px 13px; background: var(--graphite); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; }
+.vnchat-input input:focus { outline: none; border-color: var(--accent); }
+.vnchat-send { width: 42px; flex-shrink: 0; border: none; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; display: grid; place-items: center; transition: background var(--t); }
+.vnchat-send:hover { background: var(--accent-hover); }
+.vnchat-send svg { width: 18px; height: 18px; }
+@media (max-width: 480px) {
+  .vnchat-panel { right: 8px; bottom: 8px; height: calc(100vh - 16px); }
+  .vnchat { right: 16px; bottom: 16px; }
+}

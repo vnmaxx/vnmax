@@ -1,12 +1,7 @@
 // Landing page publica da VNMAX (conteudo comercial e institucional aberto).
 import logoUrl from '../logo.png';
-import { brand, publicContent as c, divisions } from './data.js';
+import { brand, publicContent as c } from './data.js';
 import { icon } from './icons.js';
-
-const divName = (name) => {
-  const suffix = name.replace(/^VNMAX\s*/, '');
-  return `<span class="vn">VNMAX</span> <span class="dv">${suffix}</span>`;
-};
 
 export function renderLanding() {
   return `
@@ -15,8 +10,8 @@ export function renderLanding() {
       <a class="brand-mark" href="#top" aria-label="VNMAX"><img src="${logoUrl}" alt="VNMAX"></a>
       <nav class="nav-links">
         <a href="#sobre">Sobre</a>
-        <a href="#ecossistema">Ecossistema</a>
         <a href="#servicos">Serviços</a>
+        <a href="#diferenciais">Diferenciais</a>
         <a href="#faq">FAQ</a>
       </nav>
       <a class="btn btn-primary" href="#contato">${c.hero.cta1}</a>
@@ -33,10 +28,7 @@ export function renderLanding() {
         <p class="subtitle reveal">${c.hero.subtitle}</p>
         <div class="hero-actions reveal">
           <a class="btn btn-primary" href="#contato">${c.hero.cta1} ${icon('arrow')}</a>
-          <a class="btn btn-ghost" href="#ecossistema">${c.hero.cta2}</a>
-        </div>
-        <div class="hero-chips reveal">
-          ${divisions.map((d) => `<span class="chip"><span class="dot" style="--cdot:${d.color}"></span>${d.name.replace('VNMAX ', '')}</span>`).join('')}
+          <a class="btn btn-ghost" href="#servicos">Conheça os serviços</a>
         </div>
       </div>
     </section>
@@ -64,26 +56,6 @@ export function renderLanding() {
             <div class="card value reveal">
               <h3><span class="vdot"></span>${v.title}</h3>
               <p>${v.text}</p>
-            </div>`).join('')}
-        </div>
-      </div>
-    </section>
-
-    <!-- ECOSSISTEMA -->
-    <section class="section" id="ecossistema">
-      <div class="wrap">
-        <span class="eyebrow reveal">O ecossistema VNMAX</span>
-        <h2 class="section-title reveal">${c.ecosystemIntro.title}</h2>
-        <p class="section-sub reveal">${c.ecosystemIntro.text}</p>
-        <div class="eco-grid">
-          ${divisions.map((d) => `
-            <div class="eco-card reveal" style="--c:${d.color};--c-soft:${hexSoft(d.color)}">
-              <div class="eco-ico">${icon(d.icon)}</div>
-              <div class="eco-body">
-                <div class="ename">${divName(d.name)}</div>
-                <div class="area">${d.area}</div>
-                <div class="slogan">${d.slogan}</div>
-              </div>
             </div>`).join('')}
         </div>
       </div>
@@ -173,8 +145,8 @@ export function renderLanding() {
           <a class="footer-email" href="mailto:${brand.email}">${icon('mail')} ${brand.email}</a>
         </div>
         <div class="footer-col">
-          <h4>Ecossistema</h4>
-          <ul>${divisions.slice(0, 5).map((d) => `<li><a href="#ecossistema"><span class="fdot" style="--c:${d.color}"></span>${d.name}</a></li>`).join('')}</ul>
+          <h4>Soluções</h4>
+          <ul>${c.services.slice(0, 5).map((s) => `<li><a href="#servicos"><span class="fdot"></span>${s.title}</a></li>`).join('')}</ul>
         </div>
         <div class="footer-col">
           <h4>Empresa</h4>
@@ -192,15 +164,6 @@ export function renderLanding() {
       </div>
     </div>
   </footer>`;
-}
-
-// Cor de divisao com baixa opacidade (fundo do icone). Aceita #RRGGBB.
-function hexSoft(hex) {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, 0.13)`;
 }
 
 // Interacoes: header scroll, FAQ, reveal-on-scroll. Retorna teardown.
