@@ -1,17 +1,25 @@
-# Assistente VNMAX (NVIDIA NIM)
+# Assistente VNMAX (NVIDIA NIM) + captura de leads (CRM)
 
-Backend de chat que responde, ajuda e agenda contatos para os visitantes do site,
-usando o **NVIDIA NIM** (catálogo NVIDIA, endpoint OpenAI-compatible). A chave da
-NVIDIA fica **somente** aqui (no `.env` do servidor) — nunca no frontend.
+Backend que (1) responde/ajuda/agenda visitantes via **NVIDIA NIM** (chat) e
+(2) recebe o **formulário de contato** do site. Todo lead — do chat e do formulário —
+é gravado no **Firestore** (alimenta o CRM interno) com backup local em `data/leads.jsonl`.
+A chave da NVIDIA fica **somente** aqui (no `.env`) — nunca no frontend.
+
+Endpoints: `POST /api/chat`, `POST /api/contact`, `GET /api/health`.
 
 ## Requisitos
-- Node.js **18+** (usa `fetch` nativo, zero dependências).
+- Node.js **18+**.
 - Uma chave do NVIDIA NIM (NVIDIA Build / API Catalog).
+- `firebase-admin` (instalado via `npm install`) + **`serviceAccount.json`** do Firebase
+  na pasta `server/` (para gravar os leads no Firestore/CRM). Sem ele, os leads vão
+  apenas para `data/leads.jsonl` e o CRM não recebe.
 
 ## Rodar localmente
 ```bash
 cd server
+npm install                 # instala firebase-admin
 cp .env.example .env        # preencha NVIDIA_API_KEY (e ALLOWED_ORIGINS p/ teste: *)
+# (opcional) coloque serviceAccount.json aqui para alimentar o CRM
 npm start
 # em outro terminal:
 curl http://127.0.0.1:8787/api/health

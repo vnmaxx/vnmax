@@ -41,6 +41,17 @@ fi
 chmod 600 "$APP_DIR/.env"
 mkdir -p "$APP_DIR/data"
 
+echo "==> Instalando dependencias (firebase-admin)..."
+( cd "$APP_DIR" && npm install --omit=dev --no-audit --no-fund )
+if [ -f "$APP_DIR/serviceAccount.json" ]; then
+  chmod 600 "$APP_DIR/serviceAccount.json"
+  echo "==> serviceAccount.json detectado — leads irao para o Firestore (CRM)."
+else
+  echo "!! serviceAccount.json NAO encontrado em $APP_DIR."
+  echo "   Sem ele, os leads vao so para data/leads.jsonl (CRM nao recebe)."
+  echo "   Baixe em Firebase Console > Project settings > Service accounts e salve como serviceAccount.json aqui."
+fi
+
 UNIT_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 echo "==> Escrevendo $UNIT_PATH"
 cat > "$UNIT_PATH" <<EOF

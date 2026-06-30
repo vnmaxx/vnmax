@@ -1,7 +1,7 @@
 // Acesso ao conteudo RESERVADO via Firestore.
 // Este modulo importa firebase/firestore e e carregado dinamicamente (apos o
 // login, junto com internal.js), entao o Firestore NAO entra no bundle publico.
-import { getFirestore, doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, collection, getDocs, query, orderBy, updateDoc, deleteDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { app, isFirebaseConfigured } from './firebase.js';
 
 let db = null;
@@ -28,4 +28,34 @@ export async function getInternalDocs() {
   const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   docs.sort((a, b) => (a.path || '').localeCompare(b.path || ''));
   return docs;
+}
+
+/* ---- CRM: leads (formulario de contato + chat de IA) ---- */
+
+export async function getLeads() {
+  if (!db) throw new Error('Firebase nao configurado.');
+  const toMs = (ts) => (ts && ts.toDate ? ts.toDate().getTime() : ts && ts.seconds ? ts.seconds * 1000 : typeof ts === 'number' ? ts : 0);
+  try {
+    const snap = await getDocs(query(collection(db, 'leads'), orderBy('createdAt', 'desc')));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    if (e && e.code !== 'failed-precondition') throw e; // propaga erros reais (permissao, rede)
+    const snap = await getDocs(collection(db, 'leads'));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
+  }
+}
+
+export async function updateLeadStatus(id, status) {
+  if (!db) throw new Error('Firebase nao configurado.');
+  await updateDoc(doc(db, 'leads', id), { status, updatedAt: serverTimestamp() });
+}
+
+export async function addLeadNote(id, texto) {
+  if (!db) throw new Error('Firebase nao configurado.');
+  await updateDoc(doc(db, 'leads', id), { notas: arrayUnion({ texto, ts: Date.now() }), updatedAt: serverTimestamp() });
+}
+
+export async function deleteLead(id) {
+  if (!db) throw new Error('Firebase nao configurado.');
+  await deleteDoc(doc(db, 'leads', id));
 }
