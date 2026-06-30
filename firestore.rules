@@ -18,10 +18,48 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/allowlist/$(request.auth.uid));
     }
 
-    // Conteudo interno reservado.
+    // Conteudo interno reservado (portal: divisoes, roadmap, produtos).
     match /internal/{doc} {
       allow read: if isMember();
       allow write: if false;          // somente Admin SDK (seed)
+    }
+
+    // Base de conhecimento interna (vnmax-os: docs/markdown).
+    match /internal_docs/{doc} {
+      allow read: if isMember();
+      allow write: if false;          // somente Admin SDK (seed)
+    }
+
+    // Leads do CRM (vindos do formulario de contato e do chat de IA).
+    // Criacao somente via Admin SDK (servidor). Membros leem e gerenciam o funil.
+    match /leads/{id} {
+      allow read, update, delete: if isMember();
+      allow create: if false;
+    }
+
+    // Postagens sociais (aba Social): rascunho/aprovacao/publicacao. Escrita SOMENTE
+    // pelo servidor (Admin SDK), que verifica o ID token. Membros apenas leem.
+    match /social_posts/{id} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+
+    // Jobs de edicao de video (aba Vídeo). Escrita so pelo servidor/worker (Admin SDK).
+    match /video_jobs/{id} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+
+    // Contas conectadas das redes (aba Social → Contas). Guardam TOKENS de acesso,
+    // entao NUNCA sao lidas pelo client: todo acesso passa pelo servidor (Admin SDK),
+    // que remove os segredos antes de responder. Negado a leitura/escrita pelo client.
+    match /social_connections/{id} {
+      allow read, write: if false;
+    }
+
+    // Estados temporarios do fluxo OAuth (code_verifier/state). Somente Admin SDK.
+    match /social_oauth_states/{id} {
+      allow read, write: if false;
     }
 
     // Allowlist de membros internos (gerenciada no console / Admin SDK).

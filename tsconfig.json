@@ -1,0 +1,24 @@
+{
+  // TypeCheck do frontend VNMAX (codigo JS verificado via checkJs).
+  // Escopo: src/ — o bundle que a Vercel builda (Vite). O backend server/
+  // roda como pacote Node separado e nao e deployado pela Vercel.
+  // Config pragmatica: pega erros reais (typos, args errados, imports quebrados)
+  // sem exigir anotacoes de tipo (noImplicitAny desligado).
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "isolatedModules": true
+  },
+  "include": ["src/**/*.js", "src/**/*.mjs"]
+}

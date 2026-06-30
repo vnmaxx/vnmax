@@ -1,0 +1,9 @@
+.env
+data/
+node_modules/
+*.log
+serviceAccount.json
+video/work/
+video/output/
+video/inbox/
+video/vendor/
