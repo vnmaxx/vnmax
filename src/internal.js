@@ -1,13 +1,15 @@
 // Portal interno/institucional (renderizado apos login bem-sucedido).
 // O conteudo (`content`) vem do Firestore (internal/content), buscado por main.js.
 // Os documentos da base (internal_docs) sao carregados sob demanda.
-import logoUrl from '../logo.png';
+import logoUrl from '../logo-wordmark.png';
 import { brand } from './data.js';
 import { icon } from './icons.js';
 import { logout } from './firebase.js';
 
 export { getInternalContent } from './internal-data.js';
 import { getInternalDocs, getLeads, updateLeadStage, addLeadEvent, updateLeadFields, deleteLead } from './internal-data.js';
+import { socialStatus, adaptPosts, saveCampaign, submitCampaign, approveCampaign, rejectCampaign, markPosted, deleteCampaign, getSocialPosts } from './social-data.js';
+import { videoTools, createVideoJob, deleteVideoJob, getVideoJobs } from './social-data.js';
 
 // Estagios do funil do CRM (NOVO -> ... -> FECHADO / PERDIDO).
 const STAGES = [
@@ -40,7 +42,7 @@ function header(who, badge) {
   return `
     <header class="portal-header">
       <div class="wrap nav">
-        <a class="brand-mark" href="#"><img src="${logoUrl}" alt="VNMAX">${badge ? '<span class="portal-badge">Interno</span>' : ''}</a>
+        <a class="brand-mark" href="#"><img src="${logoUrl}" alt="VNMAX" width="69" height="46">${badge ? '<span class="portal-badge">Interno</span>' : ''}</a>
         <div class="user-box">
           <span>${who}</span>
           <button class="btn btn-ghost" id="logoutBtn">${icon('logout')} Sair</button>
@@ -81,6 +83,8 @@ export function renderInternal(user, content) {
         <div class="tabs" id="tabs">
           <button class="tab active" data-tab="inst">Institucional</button>
           <button class="tab" data-tab="crm">CRM</button>
+          <button class="tab" data-tab="social">Social</button>
+          <button class="tab" data-tab="video">Vídeo</button>
           <button class="tab" data-tab="eco">Ecossistema</button>
           <button class="tab" data-tab="road">Roadmap</button>
           <button class="tab" data-tab="estr">Estratégia</button>
@@ -115,6 +119,30 @@ export function renderInternal(user, content) {
         <p class="lead">Contatos do formulário do site e do assistente de IA, organizados por estágio. Arraste os cards entre as colunas para mover no funil.</p>
         <div id="crmMount">
           <div style="display:flex;align-items:center;gap:12px;color:var(--text-dim);padding:30px 0"><span class="spinner"></span> Carregando leads…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SOCIAL -->
+    <section class="panel hidden" data-panel="social">
+      <div class="wrap" style="max-width:none">
+        <span class="eyebrow">Social · Publicação multi-rede</span>
+        <h2 class="section-title">Publicar e agendar nas redes</h2>
+        <p class="lead">Escreva uma vez, adapte para cada rede com IA e publique ou agende em todas as redes do Ayrshare. A agenda mostra o que está programado e o que já foi publicado.</p>
+        <div id="socialMount">
+          <div style="display:flex;align-items:center;gap:12px;color:var(--text-dim);padding:30px 0"><span class="spinner"></span> Carregando central de publicação…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VÍDEO -->
+    <section class="panel hidden" data-panel="video">
+      <div class="wrap" style="max-width:none">
+        <span class="eyebrow">Vídeo · Edição automatizada</span>
+        <h2 class="section-title">Editor de vídeo (worker)</h2>
+        <p class="lead">Envie um vídeo (URL ou arquivo no inbox do servidor) com instruções. O worker corta, aplica color grade, legendas e intro de marca (hyperframes), e a edição inteligente (video-use) quando disponível. O resultado vira mídia pronta para a aba Social.</p>
+        <div id="videoMount">
+          <div style="display:flex;align-items:center;gap:12px;color:var(--text-dim);padding:30px 0"><span class="spinner"></span> Carregando editor…</div>
         </div>
       </div>
     </section>
@@ -239,6 +267,8 @@ export function bindInternal(root, onLogout) {
   const panels = root.querySelectorAll('.panel');
   let docsLoaded = false;
   let crmLoaded = false;
+  let socialLoaded = false;
+  let videoLoaded = false;
 
   const activate = (target) => {
     tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === target));
@@ -246,6 +276,8 @@ export function bindInternal(root, onLogout) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (target === 'docs' && !docsLoaded) { docsLoaded = true; loadDocs(root); }
     if (target === 'crm' && !crmLoaded) { crmLoaded = true; loadCrm(root); }
+    if (target === 'social' && !socialLoaded) { socialLoaded = true; loadSocial(root); }
+    if (target === 'video' && !videoLoaded) { videoLoaded = true; loadVideo(root); }
   };
   tabs.forEach((tab) => tab.addEventListener('click', () => activate(tab.dataset.tab)));
 
@@ -288,6 +320,13 @@ async function loadDocs(root) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// So aceita http(s) em href (bloqueia javascript:/data:/vbscript:). Retorna a URL
+// segura ou null.
+function safeUrl(u) {
+  try { const url = new URL(String(u || '')); return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : null; }
+  catch { return null; }
 }
 
 function fmtDate(ts) {
@@ -506,4 +545,430 @@ async function loadCrm(root) {
   });
 
   render();
+}
+
+/* ---------------- SOCIAL: composer multi-rede + adaptacao IA + agenda --------------- */
+const SOCIAL_ICON = { instagram: 'instagram', twitter: 'spark', linkedin: 'linkedin', facebook: 'megaphone', tiktok: 'tiktok', youtube: 'youtube', threads: 'spark', bluesky: 'bluesky', pinterest: 'tag', reddit: 'spark', telegram: 'send', gmb: 'tag' };
+const SOCIAL_STATUS = {
+  rascunho: { l: 'Rascunho', c: '#8a8a93', ord: 2 }, aguardando: { l: 'Aguardando aprovação', c: '#f5b73c', ord: 0 },
+  aprovado: { l: 'Aprovado · publicar', c: '#22d3ee', ord: 1 }, agendado: { l: 'Agendado', c: '#2f7bff', ord: 1 },
+  publicado: { l: 'Publicado', c: '#36d399', ord: 3 }, rejeitado: { l: 'Rejeitado', c: '#ff4d4f', ord: 2 },
+};
+const tomos = [['profissional', 'Profissional'], ['inspirador', 'Inspirador'], ['descontraido', 'Descontraído'], ['tecnico', 'Técnico'], ['vendedor', 'Persuasivo']];
+
+// "Abrir a rede com o texto pronto" (publicacao semiautomatica). Onde a rede tem
+// URL de intent/compose, prefil o texto; senao, abre o site para colar.
+function socialIntent(platform, caption, media) {
+  const t = encodeURIComponent(caption || '');
+  const u = (media && media[0]) ? encodeURIComponent(media[0]) : '';
+  switch (platform) {
+    case 'twitter': return `https://twitter.com/intent/tweet?text=${t}`;
+    case 'threads': return `https://www.threads.net/intent/post?text=${t}`;
+    case 'bluesky': return `https://bsky.app/intent/compose?text=${t}`;
+    case 'linkedin': return `https://www.linkedin.com/feed/?shareActive=true&text=${t}`;
+    case 'reddit': return `https://www.reddit.com/submit?title=${encodeURIComponent((caption || '').slice(0, 290))}`;
+    case 'telegram': return u ? `https://t.me/share/url?url=${u}&text=${t}` : 'https://web.telegram.org/';
+    case 'facebook': return u ? `https://www.facebook.com/sharer/sharer.php?u=${u}&quote=${t}` : 'https://www.facebook.com/';
+    default: return null;
+  }
+}
+const SOCIAL_SITE = { instagram: 'https://www.instagram.com/', tiktok: 'https://www.tiktok.com/upload', youtube: 'https://studio.youtube.com/', pinterest: 'https://www.pinterest.com/pin-builder/', gmb: 'https://business.google.com/posts', facebook: 'https://www.facebook.com/', telegram: 'https://web.telegram.org/', whatsapp: 'https://web.whatsapp.com/' };
+
+async function loadSocial(root) {
+  const mount = root.querySelector('#socialMount');
+  if (!mount) return;
+
+  let status, posts = [];
+  try { status = await socialStatus(); }
+  catch (err) {
+    mount.innerHTML = `<p style="color:#ff6b6b;margin-bottom:12px">Não foi possível conectar ao servidor de publicação: ${escapeHtml(err.message || '')}</p><button class="btn btn-ghost" id="soRetry">Tentar de novo</button>`;
+    mount.querySelector('#soRetry').addEventListener('click', () => loadSocial(root));
+    return;
+  }
+  let agendaError = '';
+  try { posts = await getSocialPosts(); } catch (e) { agendaError = e.message || 'Falha ao carregar a agenda.'; }
+
+  const platforms = status.platforms || [];
+  const byKey = Object.fromEntries(platforms.map((p) => [p.key, p]));
+  const selected = new Set();
+  let variants = {};
+  let busy = false;
+  let editId = null;     // id do rascunho em edicao (null = novo)
+
+  const netChip = (p) => `<button class="so-net" data-net="${p.key}" title="${p.requiresMedia ? 'Exige imagem/vídeo' : ''}">
+      <span class="so-net-ico">${icon(SOCIAL_ICON[p.key] || 'spark')}</span>${escapeHtml(p.label)}
+    </button>`;
+
+  mount.innerHTML = `
+    <div class="social">
+      <div class="so-status">
+        <span class="so-badge ${status.nvidia ? 'ok' : 'off'}">IA ${status.nvidia ? 'ativa' : 'inativa'}</span>
+        <span class="so-conn">${icon('layers') || ''}${platforms.length} redes</span>
+        <span class="so-hint">Fluxo: rascunho → aprovação → publicar (você confirma a postagem).</span>
+      </div>
+
+      <div class="so-grid">
+        <div class="so-compose">
+          <div class="so-compose-head"><strong id="soMode">Nova publicação</strong><button class="btn btn-ghost so-mini" id="soNew" hidden>+ Nova</button></div>
+          <label class="so-label">Conteúdo base</label>
+          <textarea id="soContent" rows="5" placeholder="Escreva a ideia central do post. A IA adapta para cada rede respeitando os limites."></textarea>
+
+          <label class="so-label">Mídia (URLs públicas https, separadas por espaço ou vírgula) — opcional</label>
+          <input id="soMedia" type="text" placeholder="https://… .jpg / .mp4">
+
+          <label class="so-label">Redes</label>
+          <div class="so-nets">${platforms.map(netChip).join('')}</div>
+
+          <div class="so-row">
+            <label class="so-label" style="margin:0">Tom</label>
+            <select id="soTone" class="crm-filter">${tomos.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+            <button class="btn btn-ghost" id="soAdapt">${icon('brain')} Adaptar por rede (IA)</button>
+          </div>
+
+          <div id="soVariants" class="so-variants"></div>
+
+          <label class="so-label">Agendar (opcional) — define a data para publicar depois de aprovado</label>
+          <div class="so-publish">
+            <input id="soWhen" type="datetime-local" class="crm-filter">
+            <button class="btn btn-ghost" id="soDraft">${icon('doc')} Salvar rascunho</button>
+            <button class="btn btn-primary" id="soSubmit">${icon('send')} Enviar p/ aprovação</button>
+          </div>
+          <div id="soMsg" class="so-msg"></div>
+        </div>
+
+        <div class="so-agenda">
+          <div class="so-agenda-head"><h3>Fluxo de publicação</h3><button class="btn btn-ghost so-mini" id="soRefresh">${icon('spark')} Atualizar</button></div>
+          <div id="soList"></div>
+        </div>
+      </div>
+    </div>`;
+
+  const $ = (s) => mount.querySelector(s);
+  const msg = (text, kind) => { const el = $('#soMsg'); el.textContent = text || ''; el.className = 'so-msg' + (kind ? ' ' + kind : ''); };
+
+  // -- selecao de redes --
+  function syncNetUI() { mount.querySelectorAll('.so-net').forEach((b) => b.classList.toggle('on', selected.has(b.dataset.net))); }
+  mount.querySelectorAll('.so-net').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.net;
+    if (selected.has(k)) selected.delete(k); else selected.add(k);
+    b.classList.toggle('on', selected.has(k));
+  }));
+
+  // Carrega um rascunho/rejeitado no composer para edicao.
+  function editDraft(p) {
+    editId = p.id;
+    $('#soContent').value = p.content || '';
+    $('#soMedia').value = (p.mediaUrls || []).join(' ');
+    selected.clear(); (p.platforms || []).forEach((k) => selected.add(k)); syncNetUI();
+    variants = {}; (p.targets || []).forEach((t) => { variants[t.platform] = t.caption || ''; }); renderVariants();
+    $('#soWhen').value = p.scheduleAt ? new Date(p.scheduleAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
+    $('#soMode').textContent = 'Editando rascunho'; $('#soNew').hidden = false;
+    msg(''); mount.querySelector('.so-compose').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function clearComposer() {
+    editId = null; $('#soContent').value = ''; $('#soMedia').value = ''; $('#soWhen').value = '';
+    selected.clear(); syncNetUI(); variants = {}; renderVariants();
+    $('#soMode').textContent = 'Nova publicação'; $('#soNew').hidden = true; msg('');
+  }
+  $('#soNew').addEventListener('click', clearComposer);
+
+  // -- editores de variantes (apos adaptar) --
+  function renderVariants() {
+    const cont = $('#soVariants');
+    const keys = Object.keys(variants);
+    if (!keys.length) { cont.innerHTML = ''; return; }
+    cont.innerHTML = `<div class="so-vhead">Versões por rede (edite à vontade)</div>` + keys.map((k) => {
+      const p = byKey[k] || { label: k, limit: 0 };
+      const v = variants[k] || '';
+      return `<div class="so-var" data-net="${k}">
+        <div class="so-var-top"><span class="so-var-name">${icon(SOCIAL_ICON[k] || 'spark')} ${escapeHtml(p.label)}</span><span class="so-count" data-for="${k}">${v.length}/${p.limit}</span></div>
+        <textarea class="so-var-text" data-net="${k}" rows="3">${escapeHtml(v)}</textarea>
+      </div>`;
+    }).join('');
+    cont.querySelectorAll('.so-var-text').forEach((ta) => ta.addEventListener('input', () => {
+      const k = ta.dataset.net; variants[k] = ta.value;
+      const c = cont.querySelector(`.so-count[data-for="${k}"]`); const lim = (byKey[k] || {}).limit || 0;
+      if (c) { c.textContent = `${ta.value.length}/${lim}`; c.classList.toggle('over', lim && ta.value.length > lim); }
+    }));
+  }
+
+  function collectMedia() {
+    return ($('#soMedia').value || '').split(/[\s,]+/).map((u) => u.trim()).filter((u) => /^https:\/\/\S+$/i.test(u));
+  }
+
+  // -- adaptar por IA --
+  $('#soAdapt').addEventListener('click', async () => {
+    const content = $('#soContent').value.trim();
+    const chosen = [...selected];
+    if (!content) return msg('Escreva o conteúdo base primeiro.', 'err');
+    if (!chosen.length) return msg('Selecione ao menos uma rede.', 'err');
+    if (busy) return; busy = true;
+    const b = $('#soAdapt'); b.disabled = true; b.textContent = 'Adaptando…'; msg('');
+    try {
+      const r = await adaptPosts({ content, platforms: chosen, tone: $('#soTone').value });
+      variants = r.variants || {};
+      renderVariants();
+      const miss = (r.missing || []).map((k) => (byKey[k] || {}).label || k);
+      msg(miss.length ? `Adaptado. Atenção: ${miss.join(', ')} não foi adaptado — revise manualmente.` : 'Textos adaptados. Revise e publique ou agende.', miss.length ? 'err' : 'ok');
+    } catch (e) { msg('Falha ao adaptar: ' + e.message, 'err'); }
+    finally { busy = false; b.disabled = false; b.innerHTML = `${icon('brain')} Adaptar por rede (IA)`; }
+  });
+
+  // -- salvar rascunho / enviar para aprovacao --
+  async function refresh() { posts = await getSocialPosts().catch(() => posts); agendaError = ''; renderList(); }
+
+  async function saveDraft(submit) {
+    const content = $('#soContent').value.trim();
+    const chosen = [...selected];
+    const mediaUrls = collectMedia();
+    if (!chosen.length) return msg('Selecione ao menos uma rede.', 'err');
+    if (!content && !mediaUrls.length) return msg('Escreva um conteúdo ou informe uma mídia.', 'err');
+    let scheduleAt = null;
+    const v = $('#soWhen').value;
+    if (v) { const ms = new Date(v).getTime(); if (!Number.isFinite(ms) || ms < Date.now() + 120000) return msg('O agendamento precisa ser ao menos 2 min no futuro.', 'err'); scheduleAt = ms; }
+    if (busy) return; busy = true;
+    const dBtn = $('#soDraft'), sBtn = $('#soSubmit'); dBtn.disabled = sBtn.disabled = true; msg('Salvando…');
+    try {
+      const payload = { content, platforms: chosen, variants, tone: $('#soTone').value, mediaUrls };
+      if (scheduleAt) payload.scheduleAt = scheduleAt;
+      if (editId) payload.id = editId;
+      const r = await saveCampaign(payload);
+      if (submit) await submitCampaign(r.id);
+      msg(submit ? 'Enviado para aprovação.' : 'Rascunho salvo.', 'ok');
+      clearComposer();
+      await refresh();
+    } catch (e) { msg('Falha ao salvar: ' + e.message, 'err'); }
+    finally { busy = false; dBtn.disabled = sBtn.disabled = false; }
+  }
+  $('#soDraft').addEventListener('click', () => saveDraft(false));
+  $('#soSubmit').addEventListener('click', () => saveDraft(true));
+
+  $('#soRefresh').addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    try { await refresh(); } catch (err) { msg('Falha ao atualizar: ' + err.message, 'err'); }
+    finally { b.disabled = false; }
+  });
+
+  // -- fluxo de publicacao (lista de campanhas por estado) --
+  const lbl = (k) => (byKey[k] || {}).label || k;
+  const findTarget = (id, net) => { const p = posts.find((x) => x.id === id); return p && (p.targets || []).find((t) => t.platform === net); };
+
+  function renderList() {
+    const list = $('#soList');
+    if (agendaError && !posts.length) { list.innerHTML = `<div class="so-empty" style="color:#ff6b6b">Não foi possível carregar: ${escapeHtml(agendaError)}</div>`; return; }
+    if (!posts.length) { list.innerHTML = '<div class="so-empty">Nada ainda. Crie a primeira publicação ao lado.</div>'; return; }
+    const ordered = [...posts].sort((a, b) => {
+      const oa = (SOCIAL_STATUS[a.status] || {}).ord ?? 9, ob = (SOCIAL_STATUS[b.status] || {}).ord ?? 9;
+      return oa - ob || tsMs(b.updatedAt || b.createdAt) - tsMs(a.updatedAt || a.createdAt);
+    });
+    list.innerHTML = ordered.map((p) => {
+      const st = SOCIAL_STATUS[p.status] || { l: p.status, c: '#8a8a93' };
+      const targets = Array.isArray(p.targets) ? p.targets : [];
+      const when = p.scheduleAt ? `${p.scheduleAt > Date.now() ? 'Publicar em' : 'Era para'} ${fmtDate(p.scheduleAt)}` : fmtDate(p.createdAt);
+      const ready = p.status === 'aprovado' || p.status === 'agendado' || p.status === 'publicado';
+
+      const chips = targets.map((t) => {
+        const ok = t.posted ? ' done' : '';
+        const link = safeUrl(t.permalink);
+        const ic = `${icon(SOCIAL_ICON[t.platform] || 'spark')} ${escapeHtml(lbl(t.platform))}`;
+        return `<span class="so-target${ok}">${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${ic}</a>` : ic}${t.posted ? ' ✓' : ''}</span>`;
+      }).join('');
+
+      // Painel de publicacao semiautomatica (apenas quando aprovado/agendado).
+      const pub = ready ? `<div class="so-pub">${targets.map((t) => {
+        const intent = socialIntent(t.platform, t.caption, p.mediaUrls) || SOCIAL_SITE[t.platform] || null;
+        const openBtn = intent ? `<a class="btn btn-ghost so-mini" href="${escapeHtml(intent)}" target="_blank" rel="noopener noreferrer">Abrir ${escapeHtml(lbl(t.platform))}</a>` : '';
+        return `<div class="so-pub-row">
+          <span class="so-pub-net">${icon(SOCIAL_ICON[t.platform] || 'spark')} ${escapeHtml(lbl(t.platform))}</span>
+          <button class="btn btn-ghost so-mini so-copy" data-id="${p.id}" data-net="${t.platform}">Copiar texto</button>
+          ${openBtn}
+          ${t.posted
+            ? `<button class="btn btn-ghost so-mini so-unpost" data-id="${p.id}" data-net="${t.platform}">Reabrir</button>`
+            : `<button class="btn btn-ghost so-mini so-mark" data-id="${p.id}" data-net="${t.platform}">Marcar publicado</button>`}
+        </div>`;
+      }).join('')}</div>` : '';
+
+      // Acoes por estado.
+      let actions = '';
+      if (p.status === 'rascunho' || p.status === 'rejeitado') {
+        actions = `<button class="btn btn-ghost so-mini so-edit" data-id="${p.id}">Editar</button>
+          <button class="btn btn-ghost so-mini so-do-submit" data-id="${p.id}">Enviar p/ aprovação</button>
+          <button class="btn btn-ghost so-mini so-del" data-id="${p.id}">Excluir</button>`;
+      } else if (p.status === 'aguardando') {
+        actions = `<button class="btn btn-primary so-mini so-approve" data-id="${p.id}">Aprovar</button>
+          <button class="btn btn-ghost so-mini so-reject" data-id="${p.id}">Rejeitar</button>`;
+      } else {
+        actions = `<button class="btn btn-ghost so-mini so-del" data-id="${p.id}">Excluir</button>`;
+      }
+
+      return `<div class="so-item">
+        <div class="so-item-top"><span class="so-tag" style="--tc:${st.c}">${escapeHtml(st.l)}</span><span class="so-when">${icon('clock')} ${escapeHtml(when)}</span></div>
+        <div class="so-item-body">${escapeHtml((p.content || '').slice(0, 200)) || '<i>(sem texto)</i>'}</div>
+        <div class="so-targets">${chips}</div>
+        ${p.status === 'rejeitado' && p.rejectReason ? `<div class="so-reject">Rejeitado: ${escapeHtml(p.rejectReason)}</div>` : ''}
+        ${p.approvedByEmail ? `<div class="so-meta">Aprovado por ${escapeHtml(p.approvedByEmail)}</div>` : ''}
+        ${pub}
+        <div class="so-item-actions">${actions}</div>
+      </div>`;
+    }).join('');
+
+    // wiring
+    const act = async (el, fn, confirmMsg) => {
+      if (confirmMsg && !confirm(confirmMsg)) return;
+      el.disabled = true;
+      try { await fn(); await refresh(); } catch (e) { el.disabled = false; alert(e.message); }
+    };
+    list.querySelectorAll('.so-edit').forEach((b) => b.addEventListener('click', () => { const p = posts.find((x) => x.id === b.dataset.id); if (p) editDraft(p); }));
+    list.querySelectorAll('.so-do-submit').forEach((b) => b.addEventListener('click', () => act(b, () => submitCampaign(b.dataset.id))));
+    list.querySelectorAll('.so-approve').forEach((b) => b.addEventListener('click', () => act(b, () => approveCampaign(b.dataset.id))));
+    list.querySelectorAll('.so-reject').forEach((b) => b.addEventListener('click', () => { const r = prompt('Motivo da rejeição:'); if (r === null) return; act(b, () => rejectCampaign(b.dataset.id, r)); }));
+    list.querySelectorAll('.so-del').forEach((b) => b.addEventListener('click', () => act(b, () => deleteCampaign(b.dataset.id), 'Excluir esta campanha?')));
+    list.querySelectorAll('.so-mark').forEach((b) => b.addEventListener('click', () => { const url = prompt('Link do post publicado (opcional):') || ''; act(b, () => markPosted(b.dataset.id, b.dataset.net, url.trim() || null, false)); }));
+    list.querySelectorAll('.so-unpost').forEach((b) => b.addEventListener('click', () => act(b, () => markPosted(b.dataset.id, b.dataset.net, null, true))));
+    list.querySelectorAll('.so-copy').forEach((b) => b.addEventListener('click', async () => {
+      const t = findTarget(b.dataset.id, b.dataset.net); if (!t) return;
+      try { await navigator.clipboard.writeText(t.caption || ''); b.textContent = 'Copiado ✓'; setTimeout(() => { b.textContent = 'Copiar texto'; }, 1400); }
+      catch { alert('Não foi possível copiar. Selecione o texto manualmente.'); }
+    }));
+  }
+
+  renderList();
+}
+
+/* ---------------- VÍDEO: worker de edição (video-use + hyperframes) --------------- */
+const VIDEO_STATUS = {
+  fila: { l: 'Na fila', c: '#f5b73c' }, processando: { l: 'Processando', c: '#2f7bff' },
+  pronto: { l: 'Pronto', c: '#36d399' }, erro: { l: 'Erro', c: '#ff4d4f' },
+};
+
+async function loadVideo(root) {
+  const mount = root.querySelector('#videoMount');
+  if (!mount) return;
+
+  let caps, jobs = [], pollT = null;
+  try { caps = await videoTools(); }
+  catch (err) {
+    mount.innerHTML = `<p style="color:#ff6b6b;margin-bottom:12px">Não foi possível conectar ao servidor de vídeo: ${escapeHtml(err.message || '')}</p><button class="btn btn-ghost" id="viRetry">Tentar de novo</button>`;
+    mount.querySelector('#viRetry').addEventListener('click', () => loadVideo(root));
+    return;
+  }
+  let jobsError = '';
+  try { jobs = await getVideoJobs(); } catch (e) { jobsError = e.message || 'Falha ao carregar os jobs.'; }
+
+  const can = caps.can || {};
+  const cap = (k, label) => `<span class="so-badge ${can[k] ? 'ok' : 'off'}">${label} ${can[k] ? '✓' : '—'}</span>`;
+
+  mount.innerHTML = `
+    <div class="social">
+      <div class="so-status">
+        <span class="so-badge ${can.worker ? 'ok' : 'off'}">Worker ${can.worker ? 'ativo' : 'inativo'}</span>
+        ${cap('vertical', '9:16')}${cap('normalize', 'Áudio -14 LUFS')}${cap('color', 'Color')}${cap('subtitles', 'Legendas')}${cap('intro', 'Intro')}
+      </div>
+      ${!can.worker ? '<div class="so-warn">Worker desativado. No servidor: <code>cd server && npm install && bash install-video.sh</code>, ative <b>VIDEO_WORKER_ENABLED=true</b> no <code>.env</code> e reinicie. Você pode criar jobs mesmo assim — ficam na fila.</div>' : ''}
+
+      <div class="so-grid">
+        <div class="so-compose">
+          <div class="so-compose-head"><strong>Novo vídeo</strong></div>
+          <label class="so-label">Origem</label>
+          <div class="so-row">
+            <select id="viType" class="crm-filter"><option value="url">URL (https)</option><option value="inbox">Arquivo no inbox do servidor</option></select>
+            <input id="viValue" type="text" placeholder="https://… ou nome-do-arquivo.mp4" style="flex:1;min-width:200px">
+          </div>
+
+          <label class="so-label">Roteiro / legendas (vira legenda queimada se marcar “Legendas”)</label>
+          <textarea id="viRoteiro" rows="3" placeholder="Cole o roteiro/locução. Será fatiado e cronometrado como legenda no vídeo."></textarea>
+
+          <label class="so-label">Opções (FFmpeg — leve, sem Chrome)</label>
+          <div class="vi-opts">
+            <label><input type="checkbox" id="viVertical" checked> Formato 9:16 (vertical)</label>
+            <label><input type="checkbox" id="viNormalize" checked> Normalizar áudio (-14 LUFS)</label>
+            <label><input type="checkbox" id="viSubs"> Queimar legendas</label>
+            <label><input type="checkbox" id="viIntro"> Intro de marca</label>
+            <label>Color: <select id="viColor" class="crm-filter"><option value="none">Nenhum</option><option value="cinematic">Cinematográfico</option><option value="neutral">Neutro</option></select></label>
+          </div>
+          <div class="so-row" id="viIntroFields" hidden>
+            <input id="viIntroTitle" type="text" placeholder="Título da intro (ex.: VN MAX)" style="flex:1">
+            <input id="viIntroSub" type="text" placeholder="Subtítulo" style="flex:1">
+          </div>
+
+          <div class="so-publish">
+            <button class="btn btn-primary" id="viSubmit">${icon('send')} Enviar para edição</button>
+          </div>
+          <div id="viMsg" class="so-msg"></div>
+        </div>
+
+        <div class="so-agenda">
+          <div class="so-agenda-head"><h3>Jobs</h3><button class="btn btn-ghost so-mini" id="viRefresh">${icon('spark')} Atualizar</button></div>
+          <div id="viList"></div>
+        </div>
+      </div>
+    </div>`;
+
+  const $ = (s) => mount.querySelector(s);
+  const msg = (t, k) => { const el = $('#viMsg'); el.textContent = t || ''; el.className = 'so-msg' + (k ? ' ' + k : ''); };
+  $('#viIntro').addEventListener('change', (e) => { $('#viIntroFields').hidden = !e.target.checked; });
+
+  async function refresh() {
+    try { jobs = await getVideoJobs(); jobsError = ''; } catch (e) { jobsError = e.message; }
+    renderJobs();
+    const active = jobs.some((j) => j.status === 'fila' || j.status === 'processando');
+    if (active && !pollT) pollT = setInterval(refresh, 5000);
+    if (!active && pollT) { clearInterval(pollT); pollT = null; }
+  }
+
+  $('#viSubmit').addEventListener('click', async () => {
+    const type = $('#viType').value, value = $('#viValue').value.trim();
+    if (!value) return msg('Informe a URL ou o nome do arquivo.', 'err');
+    const b = $('#viSubmit'); b.disabled = true; msg('Enviando…');
+    try {
+      await createVideoJob({
+        source: { type, value },
+        options: {
+          vertical: $('#viVertical').checked, normalize: $('#viNormalize').checked,
+          subtitles: $('#viSubs').checked, intro: $('#viIntro').checked,
+          color: $('#viColor').value, roteiro: $('#viRoteiro').value.trim(),
+          introTitle: $('#viIntroTitle').value.trim(), introSubtitle: $('#viIntroSub').value.trim(),
+        },
+      });
+      $('#viValue').value = ''; $('#viRoteiro').value = '';
+      msg('Job criado.', 'ok');
+      await refresh();
+    } catch (e) { msg('Falha: ' + e.message, 'err'); }
+    finally { b.disabled = false; }
+  });
+
+  $('#viRefresh').addEventListener('click', async (e) => { e.currentTarget.disabled = true; try { await refresh(); } finally { e.currentTarget.disabled = false; } });
+
+  function renderJobs() {
+    const list = $('#viList');
+    if (jobsError && !jobs.length) { list.innerHTML = `<div class="so-empty" style="color:#ff6b6b">${escapeHtml(jobsError)}</div>`; return; }
+    if (!jobs.length) { list.innerHTML = '<div class="so-empty">Nenhum job ainda.</div>'; return; }
+    list.innerHTML = jobs.map((j) => {
+      const st = VIDEO_STATUS[j.status] || { l: j.status, c: '#8a8a93' };
+      const url = safeUrl(j.outputUrl);
+      const notes = Array.isArray(j.notes) ? j.notes : [];
+      return `<div class="so-item">
+        <div class="so-item-top"><span class="so-tag" style="--tc:${st.c}">${escapeHtml(st.l)}</span><span class="so-when">${icon('clock')} ${fmtDate(j.createdAt)}</span></div>
+        <div class="so-item-body">${escapeHtml(((j.source && j.source.value) || '').slice(0, 120))}${(j.options && j.options.roteiro) ? ' · ' + escapeHtml(j.options.roteiro.slice(0, 70)) : ''}</div>
+        ${j.status === 'processando' || j.status === 'fila' ? `<div class="so-meta">${escapeHtml(j.progress || '')}</div>` : ''}
+        ${j.status === 'erro' && j.error ? `<div class="so-reject">${escapeHtml(j.error)}</div>` : ''}
+        ${notes.length ? `<div class="so-meta">${notes.map((n) => escapeHtml(n)).join(' · ')}</div>` : ''}
+        ${url ? `<video class="vi-video" src="${escapeHtml(url)}" controls preload="metadata"></video>
+          <div class="so-item-actions"><button class="btn btn-ghost so-mini vi-use" data-url="${escapeHtml(url)}">Usar na aba Social</button>
+          <a class="btn btn-ghost so-mini" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" download>Baixar</a>
+          <button class="btn btn-ghost so-mini vi-del" data-id="${j.id}">Excluir</button></div>`
+          : `<div class="so-item-actions"><button class="btn btn-ghost so-mini vi-del" data-id="${j.id}">Excluir</button></div>`}
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.vi-del').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Excluir este job?')) return; b.disabled = true;
+      try { await deleteVideoJob(b.dataset.id); await refresh(); } catch (e) { b.disabled = false; alert(e.message); }
+    }));
+    list.querySelectorAll('.vi-use').forEach((b) => b.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(b.dataset.url); b.textContent = 'URL copiada ✓'; setTimeout(() => { b.textContent = 'Usar na aba Social'; }, 1600); }
+      catch { alert('URL: ' + b.dataset.url); }
+    }));
+  }
+
+  await refresh();
 }

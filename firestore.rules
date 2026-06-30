@@ -37,6 +37,19 @@ service cloud.firestore {
       allow create: if false;
     }
 
+    // Postagens sociais (aba Social): rascunho/aprovacao/publicacao. Escrita SOMENTE
+    // pelo servidor (Admin SDK), que verifica o ID token. Membros apenas leem.
+    match /social_posts/{id} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+
+    // Jobs de edicao de video (aba Vídeo). Escrita so pelo servidor/worker (Admin SDK).
+    match /video_jobs/{id} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+
     // Allowlist de membros internos (gerenciada no console / Admin SDK).
     match /allowlist/{uid} {
       allow read, write: if false;
