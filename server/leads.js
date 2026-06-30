@@ -47,18 +47,47 @@ export function validarContato(nome, contato) {
   return null; // ok
 }
 
-// Grava um lead. `input`: { nome, contato, email, whatsapp, empresa, assunto, mensagem, origem, ip }
+// Detecta o canal do contato (whatsapp / email / instagram).
+function detectCanal(contato, email, whatsapp) {
+  if (email || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(contato || ''))) return 'email';
+  const c = String(whatsapp || contato || '');
+  if (whatsapp || (c.match(/\d/g) || []).length >= 8) return 'whatsapp';
+  if (c.trim().startsWith('@')) return 'instagram';
+  return '';
+}
+
+// Grava um lead enriquecido. `input`: { nome, contato, email, whatsapp, empresa,
+// segmento, assunto, mensagem, origem, conversa, ip }
 export async function saveLead(input = {}) {
+  const nome = String(input.nome || '').trim().slice(0, 120);
+  const contato = String(input.contato || '').trim().slice(0, 160);
+  const email = input.email ? String(input.email).trim().slice(0, 160) : null;
+  const whatsapp = input.whatsapp ? String(input.whatsapp).trim().slice(0, 60) : null;
+  const assunto = input.assunto ? String(input.assunto).trim().slice(0, 200) : null;
+  const mensagem = input.mensagem ? String(input.mensagem).trim().slice(0, 2000) : null;
+  const origem = input.origem === 'form' ? 'form' : 'chat';
+  const em = Date.now();
+
+  // Timeline inicial do lead (histórico real do contato).
+  const historico = [{ tipo: 'origem', texto: origem === 'form' ? 'Lead recebido pelo formulário do site.' : 'Lead recebido pelo chat de IA.', em }];
+  if (mensagem) historico.push({ tipo: 'mensagem', texto: mensagem, em });
+  else if (assunto) historico.push({ tipo: 'mensagem', texto: assunto, em });
+  if (input.conversa) historico.push({ tipo: 'conversa', texto: String(input.conversa).slice(0, 4000), em });
+
   const lead = {
-    nome: String(input.nome || '').trim().slice(0, 120),
-    contato: String(input.contato || '').trim().slice(0, 160),
-    email: input.email ? String(input.email).trim().slice(0, 160) : null,
-    whatsapp: input.whatsapp ? String(input.whatsapp).trim().slice(0, 60) : null,
+    nome,
+    contato,
+    email,
+    whatsapp,
     empresa: input.empresa ? String(input.empresa).trim().slice(0, 120) : null,
-    assunto: input.assunto ? String(input.assunto).trim().slice(0, 200) : null,
-    mensagem: input.mensagem ? String(input.mensagem).trim().slice(0, 2000) : null,
-    origem: input.origem === 'form' ? 'form' : 'chat',
-    status: 'novo',
+    segmento: input.segmento ? String(input.segmento).trim().slice(0, 120) : '',
+    canal: input.canal || detectCanal(contato, email, whatsapp),
+    assunto,
+    mensagem,
+    origem,
+    stage: 'NOVO',
+    observacao: '',
+    historico,
     ip: input.ip || null,
   };
 
@@ -73,7 +102,6 @@ export async function saveLead(input = {}) {
     try {
       const ref = await db.collection('leads').add({
         ...lead,
-        notas: [],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });

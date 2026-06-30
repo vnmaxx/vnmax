@@ -46,6 +46,7 @@ async function registrarContato(args, meta) {
     whatsapp: isEmail ? null : contato,
     assunto: String(args?.assunto || '').trim() || null,
     mensagem: dataPref ? `Horário preferido informado no chat: ${dataPref}` : null,
+    conversa: meta.conversa || null,
     origem: 'chat',
     ip: meta.ip || null,
   });

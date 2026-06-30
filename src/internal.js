@@ -7,19 +7,27 @@ import { icon } from './icons.js';
 import { logout } from './firebase.js';
 
 export { getInternalContent } from './internal-data.js';
-import { getInternalDocs, getLeads, updateLeadStatus, addLeadNote, deleteLead } from './internal-data.js';
+import { getInternalDocs, getLeads, updateLeadStage, addLeadEvent, updateLeadFields, deleteLead } from './internal-data.js';
 
-// Estagios do funil do CRM.
+// Estagios do funil do CRM (NOVO -> ... -> FECHADO / PERDIDO).
 const STAGES = [
-  { key: 'novo', label: 'Novo', color: '#9b5cff' },
-  { key: 'contatado', label: 'Contatado', color: '#2f7bff' },
-  { key: 'qualificado', label: 'Qualificado', color: '#22d3ee' },
-  { key: 'proposta', label: 'Proposta', color: '#ff8a3d' },
-  { key: 'negociacao', label: 'Negociação', color: '#f5b73c' },
-  { key: 'ganho', label: 'Ganho', color: '#36d399' },
-  { key: 'perdido', label: 'Perdido', color: '#ff4d4f' },
+  { key: 'NOVO', label: 'Novo', color: '#9b5cff' },
+  { key: 'CONTATADO', label: 'Contatado', color: '#2f7bff' },
+  { key: 'RESPONDEU', label: 'Respondeu', color: '#22d3ee' },
+  { key: 'QUALIFICADO', label: 'Qualificado', color: '#f5b73c' },
+  { key: 'PROPOSTA', label: 'Proposta', color: '#ff8a3d' },
+  { key: 'FECHADO', label: 'Fechado', color: '#36d399' },
+  { key: 'PERDIDO', label: 'Perdido', color: '#ff4d4f' },
 ];
+const STAGE_KEYS = STAGES.map((s) => s.key);
 const stageOf = (k) => STAGES.find((s) => s.key === k) || STAGES[0];
+const leadStage = (l) => (l && STAGE_KEYS.includes(l.stage) ? l.stage : 'NOVO');
+const CANAIS = {
+  whatsapp: { label: 'WhatsApp', icon: 'whatsapp', color: '#36d399' },
+  email: { label: 'E-mail', icon: 'mail', color: '#2f7bff' },
+  instagram: { label: 'Instagram', icon: 'megaphone', color: '#ff5da2' },
+};
+const EVENT_ICON = { origem: 'spark', mensagem: 'mail', conversa: 'doc', nota: 'pencil', stage: 'arrow', proposta: 'tag', resposta: 'mail' };
 
 function soft(hex) {
   const h = (hex || '#9b5cff').replace('#', '');
@@ -294,7 +302,9 @@ function fmtDate(ts) {
   } catch { return ''; }
 }
 
-// CRM: carrega os leads e monta o funil (Kanban) com drag-and-drop e drawer.
+const tsMs = (ts) => (ts && typeof ts.toDate === 'function' ? ts.toDate().getTime() : ts && ts.seconds ? ts.seconds * 1000 : typeof ts === 'number' ? ts : 0);
+
+// CRM premium: metricas de funil + Kanban (drag-and-drop) + drawer com timeline.
 async function loadCrm(root) {
   const mount = root.querySelector('#crmMount');
   if (!mount) return;
@@ -307,21 +317,26 @@ async function loadCrm(root) {
     return;
   }
 
-  let busca = '', filtro = 'todos', dragId = null, openLeadId = null;
-  const syncDrawerStatus = (id, lead) => {
-    if (openLeadId === id) { const sel = drawer.querySelector('#cdStatus'); if (sel) sel.value = lead.status || 'novo'; }
-  };
+  let busca = '', fOrigem = 'todos', fCanal = 'todos', dragId = null, openLeadId = null;
+
+  const canalBadge = (l) => { const c = CANAIS[l.canal]; return c ? `<span class="crm-canal" style="--cc:${c.color}" title="${c.label}">${icon(c.icon)}</span>` : ''; };
 
   mount.innerHTML = `
     <div class="crm">
+      <div class="crm-metrics" id="crmMetrics"></div>
       <div class="crm-bar">
-        <div class="crm-stats" id="crmStats"></div>
         <div class="crm-tools">
-          <input class="crm-search" id="crmSearch" type="search" placeholder="Buscar nome, contato, assunto…">
-          <select class="crm-filter" id="crmFiltro">
+          <input class="crm-search" id="crmSearch" type="search" placeholder="Buscar nome, contato, empresa, assunto…">
+          <select class="crm-filter" id="crmOrigem">
             <option value="todos">Todas as origens</option>
             <option value="form">Formulário</option>
             <option value="chat">Chat IA</option>
+          </select>
+          <select class="crm-filter" id="crmCanal">
+            <option value="todos">Todos os canais</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="email">E-mail</option>
+            <option value="instagram">Instagram</option>
           </select>
           <button class="btn btn-ghost" id="crmRefresh">${icon('spark')} Atualizar</button>
         </div>
@@ -329,7 +344,7 @@ async function loadCrm(root) {
       ${leads.length ? '' : '<p style="color:var(--text-dim);margin:0 0 14px">Nenhum lead ainda. Eles aparecem aqui quando alguém usa o formulário “Fale com a VNMAX” ou pede contato no chat.</p>'}
       <div class="crm-board" id="crmBoard">
         ${STAGES.map((s) => `
-          <div class="crm-col" data-stage="${s.key}">
+          <div class="crm-col" data-stage="${s.key}" style="--sc:${s.color}">
             <div class="crm-col-head"><span class="crm-dot" style="background:${s.color}"></span>${s.label}<span class="crm-count" data-count="${s.key}">0</span></div>
             <div class="crm-col-body" data-stage="${s.key}"></div>
           </div>`).join('')}
@@ -338,38 +353,56 @@ async function loadCrm(root) {
     <div class="crm-drawer" id="crmDrawer" hidden></div>`;
 
   const board = mount.querySelector('#crmBoard');
-  const statsEl = mount.querySelector('#crmStats');
+  const metricsEl = mount.querySelector('#crmMetrics');
   const drawer = mount.querySelector('#crmDrawer');
 
   const visiveis = () => {
     const q = busca.trim().toLowerCase();
     return leads.filter((l) => {
-      if (filtro !== 'todos' && (l.origem || 'chat') !== filtro) return false;
+      if (fOrigem !== 'todos' && (l.origem || 'chat') !== fOrigem) return false;
+      if (fCanal !== 'todos' && (l.canal || '') !== fCanal) return false;
       if (!q) return true;
-      return [l.nome, l.contato, l.email, l.whatsapp, l.empresa, l.assunto, l.mensagem].some((v) => (v || '').toLowerCase().includes(q));
+      return [l.nome, l.contato, l.email, l.whatsapp, l.empresa, l.assunto, l.segmento, l.mensagem].some((v) => (v || '').toLowerCase().includes(q));
     });
   };
 
   const cardHtml = (l) => {
     const origem = l.origem === 'form' ? 'form' : 'chat';
     return `<div class="crm-card" draggable="true" data-id="${l.id}">
-      <div class="crm-card-top"><strong>${escapeHtml(l.nome || '—')}</strong><span class="crm-origem ${origem}">${origem === 'form' ? 'Form' : 'Chat'}</span></div>
+      <div class="crm-card-top"><strong>${escapeHtml(l.nome || '—')}</strong>${canalBadge(l)}</div>
+      <div class="crm-card-meta"><span class="crm-origem ${origem}">${origem === 'form' ? 'Formulário' : 'Chat IA'}</span>${l.segmento ? `<span class="crm-seg">${escapeHtml(l.segmento)}</span>` : ''}</div>
       <div class="crm-card-contato">${escapeHtml(l.contato || l.email || l.whatsapp || '')}</div>
       ${l.assunto ? `<div class="crm-card-assunto">${escapeHtml(l.assunto)}</div>` : ''}
-      <div class="crm-card-date">${fmtDate(l.createdAt)}</div>
+      <div class="crm-card-date">${icon('clock')} ${fmtDate(l.updatedAt || l.createdAt)}</div>
     </div>`;
   };
 
+  function metricas() {
+    const total = leads.length;
+    const fechados = leads.filter((l) => leadStage(l) === 'FECHADO').length;
+    const perdidos = leads.filter((l) => leadStage(l) === 'PERDIDO').length;
+    const abertos = total - fechados - perdidos;
+    const conv = total ? Math.round((fechados / total) * 100) : 0;
+    const semana = Date.now() - 7 * 86400000;
+    const novos = leads.filter((l) => tsMs(l.createdAt) >= semana).length;
+    return [
+      { v: total, l: 'Total de leads' },
+      { v: abertos, l: 'Em aberto' },
+      { v: fechados, l: 'Fechados' },
+      { v: conv + '%', l: 'Conversão' },
+      { v: novos, l: 'Novos (7 dias)' },
+    ];
+  }
+
   function render() {
+    metricsEl.innerHTML = metricas().map((m) => `<div class="crm-metric"><div class="v">${m.v}</div><div class="l">${m.l}</div></div>`).join('');
     const vis = visiveis();
     STAGES.forEach((s) => {
       const body = board.querySelector(`.crm-col-body[data-stage="${s.key}"]`);
-      const items = vis.filter((l) => (l.status || 'novo') === s.key);
+      const items = vis.filter((l) => leadStage(l) === s.key).sort((a, b) => tsMs(b.updatedAt || b.createdAt) - tsMs(a.updatedAt || a.createdAt));
       body.innerHTML = items.map(cardHtml).join('');
       board.querySelector(`[data-count="${s.key}"]`).textContent = items.length;
     });
-    const nForm = leads.filter((l) => l.origem === 'form').length;
-    statsEl.innerHTML = `<span class="crm-total">${leads.length} leads</span><span class="crm-sub">${nForm} do formulário · ${leads.length - nForm} do chat</span>`;
     board.querySelectorAll('.crm-card').forEach((card) => {
       card.addEventListener('dragstart', (e) => { dragId = card.dataset.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
       card.addEventListener('dragend', () => { dragId = null; card.classList.remove('dragging'); });
@@ -383,15 +416,16 @@ async function loadCrm(root) {
     body.addEventListener('drop', (e) => { e.preventDefault(); body.classList.remove('drop'); if (dragId) move(dragId, body.dataset.stage); });
   });
 
-  async function move(id, status) {
+  async function move(id, stage) {
     const lead = leads.find((l) => l.id === id);
-    if (!lead || (lead.status || 'novo') === status) return;
-    const prev = lead.status;
-    lead.status = status;
+    if (!lead || leadStage(lead) === stage) return;
+    const prevStage = lead.stage, prevHist = lead.historico;
+    lead.stage = stage;
+    lead.historico = [...(lead.historico || []), { tipo: 'stage', texto: `Movido para ${stageOf(stage).label}`, em: Date.now() }];
     render();
-    syncDrawerStatus(id, lead);
-    try { await updateLeadStatus(id, status); }
-    catch (e) { lead.status = prev; render(); syncDrawerStatus(id, lead); alert('Não foi possível mover o lead: ' + e.message); }
+    if (openLeadId === id) openDrawer(id);
+    try { await updateLeadStage(id, stage); }
+    catch (e) { lead.stage = prevStage; lead.historico = prevHist; render(); if (openLeadId === id) openDrawer(id); alert('Não foi possível mover o lead: ' + e.message); }
   }
 
   function openDrawer(id) {
@@ -399,27 +433,36 @@ async function loadCrm(root) {
     if (!l) return;
     openLeadId = id;
     const origemLabel = l.origem === 'form' ? 'Formulário' : 'Chat IA';
+    const eventos = [...(l.historico || [])].sort((a, b) => (b.em || 0) - (a.em || 0));
     drawer.innerHTML = `
       <div class="crm-drawer-inner">
         <button class="crm-drawer-x" id="cdX" aria-label="Fechar">&times;</button>
-        <div class="crm-drawer-head"><h3>${escapeHtml(l.nome || '—')}</h3><span class="crm-origem ${l.origem === 'form' ? 'form' : 'chat'}">${origemLabel}</span></div>
+        <div class="crm-drawer-head"><h3>${escapeHtml(l.nome || '—')}</h3><span class="crm-origem ${l.origem === 'form' ? 'form' : 'chat'}">${origemLabel}</span>${canalBadge(l)}</div>
+
+        <div class="crm-chips">${STAGES.map((s) => `<button class="crm-chip${leadStage(l) === s.key ? ' on' : ''}" data-stage="${s.key}" style="--cc:${s.color}">${s.label}</button>`).join('')}</div>
+
         <dl class="crm-fields">
           ${l.contato ? `<dt>Contato</dt><dd>${escapeHtml(l.contato)}</dd>` : ''}
           ${l.email ? `<dt>E-mail</dt><dd><a href="mailto:${encodeURIComponent(l.email)}">${escapeHtml(l.email)}</a></dd>` : ''}
           ${l.whatsapp ? `<dt>WhatsApp</dt><dd>${escapeHtml(l.whatsapp)}</dd>` : ''}
           ${l.empresa ? `<dt>Empresa</dt><dd>${escapeHtml(l.empresa)}</dd>` : ''}
           ${l.assunto ? `<dt>Assunto</dt><dd>${escapeHtml(l.assunto)}</dd>` : ''}
-          ${l.mensagem ? `<dt>Mensagem</dt><dd>${escapeHtml(l.mensagem)}</dd>` : ''}
           <dt>Criado</dt><dd>${fmtDate(l.createdAt) || '—'}</dd>
         </dl>
-        <label class="crm-stage-sel">Estágio
-          <select id="cdStatus">${STAGES.map((s) => `<option value="${s.key}"${(l.status || 'novo') === s.key ? ' selected' : ''}>${s.label}</option>`).join('')}</select>
-        </label>
-        <div class="crm-notes">
-          <h4>Notas</h4>
-          <div id="cdNotes">${(l.notas || []).map((n) => `<div class="crm-note"><p>${escapeHtml(n.texto || '')}</p><span>${fmtDate(n.ts)}</span></div>`).join('') || '<div class="crm-note-empty">Sem notas ainda.</div>'}</div>
-          <div class="crm-note-add"><textarea id="cdNoteText" rows="2" placeholder="Adicionar nota…"></textarea><button class="btn btn-ghost" id="cdNoteBtn">Adicionar nota</button></div>
+
+        <div class="crm-edit">
+          <label>Segmento / nicho<input id="cdSeg" type="text" maxlength="120" value="${escapeHtml(l.segmento || '')}" placeholder="Ex.: varejo, saúde, indústria…"></label>
+          <label>Observação interna<textarea id="cdObs" rows="2" maxlength="2000" placeholder="Anotação da equipe…">${escapeHtml(l.observacao || '')}</textarea></label>
+          <button class="btn btn-ghost" id="cdSave">Salvar dados</button>
         </div>
+
+        <div class="crm-notes">
+          <h4>Atividade</h4>
+          <div class="crm-timeline">${eventos.length ? eventos.map((ev) => `
+            <div class="crm-tl-item"><span class="crm-tl-ico">${icon(EVENT_ICON[ev.tipo] || 'spark')}</span><div><p>${escapeHtml(ev.texto || '')}</p><span>${fmtDate(ev.em)}</span></div></div>`).join('') : '<div class="crm-note-empty">Sem atividade ainda.</div>'}</div>
+          <div class="crm-note-add"><textarea id="cdNoteText" rows="2" placeholder="Registrar nota / atividade…"></textarea><button class="btn btn-ghost" id="cdNoteBtn">Adicionar nota</button></div>
+        </div>
+
         <div class="crm-drawer-actions"><button class="btn crm-del" id="cdDel">Excluir lead</button></div>
       </div>`;
     drawer.hidden = false;
@@ -428,15 +471,25 @@ async function loadCrm(root) {
     const close = () => { openLeadId = null; drawer.classList.remove('show'); setTimeout(() => { drawer.hidden = true; }, 180); };
     drawer.querySelector('#cdX').addEventListener('click', close);
     drawer.addEventListener('click', (e) => { if (e.target === drawer) close(); });
-    drawer.querySelector('#cdStatus').addEventListener('change', (e) => move(id, e.target.value));
+    drawer.querySelectorAll('.crm-chip').forEach((ch) => ch.addEventListener('click', () => move(id, ch.dataset.stage)));
+
+    drawer.querySelector('#cdSave').addEventListener('click', async (e) => {
+      const seg = drawer.querySelector('#cdSeg').value.trim();
+      const obs = drawer.querySelector('#cdObs').value.trim();
+      const b = e.currentTarget; b.disabled = true;
+      try { await updateLeadFields(id, { segmento: seg, observacao: obs }); l.segmento = seg; l.observacao = obs; render(); b.textContent = 'Salvo ✓'; setTimeout(() => { const x = drawer.querySelector('#cdSave'); if (x) { x.textContent = 'Salvar dados'; x.disabled = false; } }, 1400); }
+      catch (err) { b.disabled = false; alert('Falha ao salvar: ' + err.message); }
+    });
+
     drawer.querySelector('#cdNoteBtn').addEventListener('click', async () => {
       const ta = drawer.querySelector('#cdNoteText');
       const texto = ta.value.trim();
       if (!texto) return;
       ta.disabled = true;
-      try { await addLeadNote(id, texto); l.notas = [...(l.notas || []), { texto, ts: Date.now() }]; openDrawer(id); }
+      try { await addLeadEvent(id, 'nota', texto); l.historico = [...(l.historico || []), { tipo: 'nota', texto, em: Date.now() }]; openDrawer(id); }
       catch (e) { ta.disabled = false; alert('Falha ao salvar nota: ' + e.message); }
     });
+
     drawer.querySelector('#cdDel').addEventListener('click', async () => {
       if (!confirm('Excluir este lead definitivamente?')) return;
       try { await deleteLead(id); leads = leads.filter((x) => x.id !== id); close(); render(); }
@@ -445,7 +498,8 @@ async function loadCrm(root) {
   }
 
   mount.querySelector('#crmSearch').addEventListener('input', (e) => { busca = e.target.value; render(); });
-  mount.querySelector('#crmFiltro').addEventListener('change', (e) => { filtro = e.target.value; render(); });
+  mount.querySelector('#crmOrigem').addEventListener('change', (e) => { fOrigem = e.target.value; render(); });
+  mount.querySelector('#crmCanal').addEventListener('change', (e) => { fCanal = e.target.value; render(); });
   mount.querySelector('#crmRefresh').addEventListener('click', async (e) => {
     const b = e.currentTarget; b.disabled = true;
     try { leads = await getLeads(); render(); } catch (err) { alert('Falha ao atualizar: ' + err.message); } finally { b.disabled = false; }
