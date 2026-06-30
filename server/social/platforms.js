@@ -8,13 +8,13 @@
 //   'token'   -> conexao por token/credencial manual (ex.: Telegram bot, Bluesky app password)
 //   'manual'  -> sem API publica viavel; publicacao continua semiautomatica (abrir+colar)
 export const PLATFORMS = {
-  instagram: { label: 'Instagram', limit: 2200, requiresMedia: true, mediaType: 'image|video', auth: 'oauth',
+  instagram: { label: 'Instagram', limit: 2200, requiresMedia: true, mediaType: 'image|video', auth: 'oauth', api: true,
     style: 'Legenda envolvente e visual, com quebras de linha e poucos emojis. Bloco de 8 a 15 hashtags relevantes no final.' },
   twitter: { label: 'X (Twitter)', limit: 280, requiresMedia: false, mediaType: 'any', auth: 'oauth', api: true,
     style: 'Curtíssimo e direto, no máximo 280 caracteres. Um gancho forte, 1 a 2 hashtags. Sem enrolação.' },
   linkedin: { label: 'LinkedIn', limit: 3000, requiresMedia: false, mediaType: 'any', auth: 'oauth', api: true,
     style: 'Tom profissional e orientado a valor de negócio. Primeira linha é um gancho. Parágrafos curtos. 3 a 5 hashtags ao final.' },
-  facebook: { label: 'Facebook', limit: 5000, requiresMedia: false, mediaType: 'any', auth: 'oauth',
+  facebook: { label: 'Facebook', limit: 5000, requiresMedia: false, mediaType: 'any', auth: 'oauth', api: true,
     style: 'Conversacional e acessível, com uma chamada para ação clara. Poucas hashtags.' },
   tiktok: { label: 'TikTok', limit: 2000, requiresMedia: true, mediaType: 'video', auth: 'oauth',
     style: 'Legenda curta e com energia, linguagem de tendência. Gancho de 1 linha + 3 a 6 hashtags virais.' },
