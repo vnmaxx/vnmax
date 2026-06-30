@@ -30,6 +30,13 @@ service cloud.firestore {
       allow write: if false;          // somente Admin SDK (seed)
     }
 
+    // Leads do CRM (vindos do formulario de contato e do chat de IA).
+    // Criacao somente via Admin SDK (servidor). Membros leem e gerenciam o funil.
+    match /leads/{id} {
+      allow read, update, delete: if isMember();
+      allow create: if false;
+    }
+
     // Allowlist de membros internos (gerenciada no console / Admin SDK).
     match /allowlist/{uid} {
       allow read, write: if false;

@@ -11,6 +11,7 @@ import './styles.css';
 import { renderLanding, bindLanding } from './landing.js';
 import { installSecretGesture } from './secret.js';
 import { mountChat, setChatVisible } from './chat.js';
+import { mountContact } from './contact.js';
 import { watchAuth, contentErrorMessage } from './firebase.js';
 
 const app = document.getElementById('app');
@@ -58,9 +59,10 @@ showLanding();
 // Gesto oculto de acesso interno.
 installSecretGesture();
 
-// Widget do assistente (visivel na landing publica).
+// Widget do assistente (visivel na landing publica) e formulario de contato.
 mountChat();
 setChatVisible(true);
+mountContact();
 
 // Reage a login/logout. Com Firebase nao configurado, o callback recebe null
 // e o site permanece na landing publica.

@@ -14,7 +14,7 @@ export function renderLanding() {
         <a href="#diferenciais">Diferenciais</a>
         <a href="#faq">FAQ</a>
       </nav>
-      <a class="btn btn-primary" href="#contato">${c.hero.cta1}</a>
+      <a class="btn btn-primary" href="#contato" data-contact>${c.hero.cta1}</a>
     </div>
   </header>
 
@@ -27,7 +27,7 @@ export function renderLanding() {
         <h1 class="reveal">Construindo o <span class="accent">futuro</span> através da tecnologia</h1>
         <p class="subtitle reveal">${c.hero.subtitle}</p>
         <div class="hero-actions reveal">
-          <a class="btn btn-primary" href="#contato">${c.hero.cta1} ${icon('arrow')}</a>
+          <a class="btn btn-primary" href="#contato" data-contact>${c.hero.cta1} ${icon('arrow')}</a>
           <a class="btn btn-ghost" href="#servicos">Conheça os serviços</a>
         </div>
       </div>
@@ -126,7 +126,7 @@ export function renderLanding() {
         <div class="cta-band reveal">
           <h2>${c.cta.title}</h2>
           <p>${c.cta.text}</p>
-          <a class="btn btn-primary" href="mailto:${brand.email}">${c.cta.button} ${icon('arrow')}</a>
+          <a class="btn btn-primary" href="#contato" data-contact>${c.cta.button} ${icon('arrow')}</a>
         </div>
       </div>
     </section>
@@ -154,7 +154,7 @@ export function renderLanding() {
             <li><a href="#sobre"><span class="fdot"></span>Sobre</a></li>
             <li><a href="#servicos"><span class="fdot"></span>Serviços</a></li>
             <li><a href="#faq"><span class="fdot"></span>FAQ</a></li>
-            <li><a href="mailto:${brand.email}"><span class="fdot"></span>Contato</a></li>
+            <li><a href="#contato" data-contact><span class="fdot"></span>Contato</a></li>
           </ul>
         </div>
       </div>

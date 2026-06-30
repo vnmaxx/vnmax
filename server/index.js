@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { chatCompletion } from './nvidia.js';
 import { tools, runTool } from './tools.js';
 import { buildSystemPrompt } from './prompt.js';
+import { saveLead, validarContato } from './leads.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.NVIDIA_API_KEY;
@@ -162,6 +163,38 @@ async function handleChat(req, res, origin, ip) {
   }
 }
 
+async function handleContact(req, res, origin, ip) {
+  let body;
+  try { body = JSON.parse(await readBody(req) || '{}'); }
+  catch { return json(res, 400, { error: 'JSON inválido.' }, origin); }
+
+  const nome = String(body.nome || '').trim();
+  const email = String(body.email || '').trim();
+  const whatsapp = String(body.whatsapp || '').trim();
+  const contato = email || whatsapp;
+
+  const erro = validarContato(nome, contato);
+  if (erro) return json(res, 400, { error: erro }, origin);
+
+  try {
+    await saveLead({
+      nome,
+      contato,
+      email: email || null,
+      whatsapp: whatsapp || null,
+      empresa: String(body.empresa || '').trim() || null,
+      assunto: String(body.assunto || '').trim() || null,
+      mensagem: String(body.mensagem || '').trim() || null,
+      origem: 'form',
+      ip,
+    });
+    return json(res, 200, { ok: true }, origin);
+  } catch (e) {
+    console.error('[contact] erro:', e.message);
+    return json(res, 502, { error: 'Não foi possível enviar agora. Tente novamente ou escreva para vnmax6@gmail.com.' }, origin);
+  }
+}
+
 const server = createServer(async (req, res) => {
   const origin = corsOrigin(req.headers.origin);
   const ip = clientIp(req);
@@ -170,13 +203,13 @@ const server = createServer(async (req, res) => {
 
   if (req.method === 'GET' && req.url === '/api/health') return json(res, 200, { ok: true }, origin);
 
-  if (req.method === 'POST' && req.url === '/api/chat') {
+  if (req.method === 'POST' && (req.url === '/api/chat' || req.url === '/api/contact')) {
     // Token opcional do app (se configurado).
     if (APP_TOKEN && req.headers['x-vnmax-token'] !== APP_TOKEN) return json(res, 401, { error: 'Não autorizado.' }, origin);
     // Em modo restrito, exige Origin de navegador valido (defesa em profundidade; spoofavel por nao-browser).
     if (!ALLOW_ANY && (!req.headers.origin || !origin)) return json(res, 403, { error: 'Origem não autorizada.' }, '');
-    if (rateLimited(ip)) return json(res, 429, { error: 'Muitas mensagens em pouco tempo. Aguarde um momento.' }, origin);
-    return handleChat(req, res, origin, ip);
+    if (rateLimited(ip)) return json(res, 429, { error: 'Muitas requisições em pouco tempo. Aguarde um momento.' }, origin);
+    return req.url === '/api/contact' ? handleContact(req, res, origin, ip) : handleChat(req, res, origin, ip);
   }
 
   json(res, 404, { error: 'Rota não encontrada.' }, origin);
