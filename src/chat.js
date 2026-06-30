@@ -13,6 +13,16 @@ let sending = false;
 
 function esc(s) { return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
 
+// Renderiza markdown leve do assistente: **negrito** vira <strong>; remove markdown
+// residual para nao aparecer "**" / "#" / "*" literais. Escapa HTML antes (XSS-safe).
+function formatBot(s) {
+  return esc(s)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')   // **negrito** -> negrito
+    .replace(/\*\*/g, '')                                  // remove ** soltos
+    .replace(/(^|\n)\s*#{1,6}\s+/g, '$1')                  // tira ### de titulos
+    .replace(/(^|\n)\s*\*\s+/g, '$1• ');                  // bullets "* " -> "• "
+}
+
 export function mountChat() {
   if (document.getElementById('vnmax-chat')) return;
   const root = document.createElement('div');
@@ -61,7 +71,7 @@ export function mountChat() {
   function addBubble(who, text) {
     const el = document.createElement('div');
     el.className = `vnchat-msg ${who}`;
-    el.innerHTML = `<div class="vnchat-bubble">${esc(text)}</div>`;
+    el.innerHTML = `<div class="vnchat-bubble">${who === 'bot' ? formatBot(text) : esc(text)}</div>`;
     msgs.appendChild(el);
     msgs.scrollTop = msgs.scrollHeight;
     return el;
