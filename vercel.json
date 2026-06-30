@@ -2,9 +2,7 @@
     "framework": "vite",
     "outputDirectory": "dist",
     "rewrites": [
-        {
-            "source": "/((?!assets/).*)",
-            "destination": "/index.html"
-        }
+        { "source": "/interno", "destination": "/interno.html" },
+        { "source": "/((?!assets/|interno).*)", "destination": "/index.html" }
     ]
 }
