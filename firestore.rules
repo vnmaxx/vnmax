@@ -50,6 +50,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Contas conectadas das redes (aba Social → Contas). Guardam TOKENS de acesso,
+    // entao NUNCA sao lidas pelo client: todo acesso passa pelo servidor (Admin SDK),
+    // que remove os segredos antes de responder. Negado a leitura/escrita pelo client.
+    match /social_connections/{id} {
+      allow read, write: if false;
+    }
+
+    // Estados temporarios do fluxo OAuth (code_verifier/state). Somente Admin SDK.
+    match /social_oauth_states/{id} {
+      allow read, write: if false;
+    }
+
     // Allowlist de membros internos (gerenciada no console / Admin SDK).
     match /allowlist/{uid} {
       allow read, write: if false;

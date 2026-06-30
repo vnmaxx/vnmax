@@ -39,7 +39,15 @@ export const submitCampaign = (id) => api('submit', { method: 'POST', body: { id
 export const approveCampaign = (id) => api('approve', { method: 'POST', body: { id } });
 export const rejectCampaign = (id, reason) => api('reject', { method: 'POST', body: { id, reason } });
 export const markPosted = (id, platform, permalink, undo) => api('markposted', { method: 'POST', body: { id, platform, permalink, undo } });
+// Publicacao automatica via API (X, LinkedIn, Telegram) usando a conta conectada.
+export const publishNow = (id, platform) => api('publish', { method: 'POST', body: { id, platform } });
 export const deleteCampaign = (id) => api('delete', { method: 'POST', body: { id } });
+
+/* ---- Contas conectadas (registro + OAuth) ---- */
+export const listConnections = (clienteId) => api('connections', { method: 'POST', body: { clienteId: clienteId || null } });
+export const startConnect = (payload) => api('connect/start', { method: 'POST', body: payload });
+export const connectManual = (payload) => api('connect/manual', { method: 'POST', body: payload });
+export const disconnectAccount = (platform, clienteId) => api('disconnect', { method: 'POST', body: { platform, clienteId: clienteId || null } });
 
 /* ---- Vídeo (worker de edição) ---- */
 async function videoApi(path, { method = 'GET', body } = {}) {

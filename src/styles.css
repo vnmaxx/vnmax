@@ -279,6 +279,32 @@ html { scrollbar-color: #3a3a42 transparent; scrollbar-width: thin; }
 .portal-hero h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 700; letter-spacing: -0.01em; }
 .portal-hero p { color: var(--text-dim); margin-top: 12px; max-width: 64ch; }
 
+/* ----- shell com sidebar à esquerda ----- */
+.portal-shell { display: flex; align-items: flex-start; }
+.portal-nav { position: sticky; top: 64px; align-self: flex-start; width: 232px; flex-shrink: 0; height: calc(100vh - 64px);
+  display: flex; flex-direction: column; gap: 4px; padding: 22px 14px; border-right: 1px solid var(--border); background: rgba(8,8,8,.5); }
+.nav-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); padding: 0 10px 10px; }
+.nav-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.nav-item { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-size: 14px; font-weight: 550; padding: 10px 12px; border-radius: 10px; transition: color var(--t), background var(--t); }
+.nav-item:hover { color: var(--text); background: var(--graphite); }
+.nav-item.active { color: #fff; background: var(--accent-soft); }
+.nav-item.active .nav-ico { color: var(--accent); }
+.nav-ico { display: inline-grid; place-items: center; flex-shrink: 0; }
+.nav-ico svg { width: 18px; height: 18px; }
+.nav-foot { margin-top: auto; padding: 12px 10px 0; font-size: 11px; color: var(--text-muted); }
+.portal-main { flex: 1; min-width: 0; }
+.portal-main .wrap { padding-left: 34px; padding-right: 34px; }
+@media (max-width: 860px) {
+  .portal-shell { flex-direction: column; }
+  .portal-nav { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); padding: 10px 14px; }
+  .nav-eyebrow, .nav-foot { display: none; }
+  .nav-list { flex-direction: row; flex-wrap: wrap; }
+  .nav-item { width: auto; padding: 8px 11px; }
+  .nav-label { font-size: 13px; }
+  .portal-main .wrap { padding-left: 18px; padding-right: 18px; }
+}
+
 .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 30px 0 0; border-bottom: 1px solid var(--border); }
 .tab { background: none; border: none; color: var(--text-dim); font-size: 14.5px; font-weight: 550; padding: 12px 14px; cursor: pointer; border-bottom: 2px solid transparent; transition: color var(--t), border-color var(--t); }
 .tab:hover { color: var(--text); }
@@ -486,6 +512,45 @@ html { scrollbar-color: #3a3a42 transparent; scrollbar-width: thin; }
 .so-warn code, .so-warn b { color: var(--text); }
 .so-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 22px; align-items: start; }
 @media (max-width: 1000px) { .so-grid { grid-template-columns: 1fr; } }
+
+/* topbar de cliente + sub-abas */
+.so-topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.so-client { display: flex; flex-direction: column; gap: 6px; min-width: 280px; flex: 1; }
+.so-client select { width: 100%; padding: 11px 13px; background: var(--graphite); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font-size: 14.5px; font-family: inherit; }
+.so-client select:focus { outline: none; border-color: var(--accent); }
+.so-topmeta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.so-subtabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.so-subtab { display: inline-flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer; color: var(--text-dim); font-size: 14px; font-weight: 550; padding: 10px 14px; border-bottom: 2px solid transparent; transition: color var(--t), border-color var(--t); }
+.so-subtab svg { width: 15px; height: 15px; }
+.so-subtab:hover { color: var(--text); }
+.so-subtab.active { color: var(--text); border-bottom-color: var(--accent); }
+.so-for { font-size: 12.5px; color: var(--text-muted); }
+.so-for b { color: var(--text-dim); }
+.so-label-dim { color: var(--text-muted); font-weight: 400; }
+
+/* grade de contas conectadas */
+.so-accounts-head { margin-bottom: 14px; }
+.so-accounts { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.so-account { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+.so-account-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.so-account-net { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.so-account-net svg { width: 17px; height: 17px; }
+.so-account-mode { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.so-acc { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim); }
+.so-acc svg { width: 13px; height: 13px; }
+.so-acc.on { color: #36d399; }
+.so-acc.off { color: var(--text-muted); }
+.so-account-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; padding-top: 4px; }
+
+/* conta conectada exibida no chip de rede / fluxo */
+.so-net-acc { display: inline-flex; align-items: center; font-size: 10.5px; color: #36d399; background: rgba(54,211,153,.12); border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+.so-item-client { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); margin-bottom: 7px; }
+.so-item-client svg { width: 13px; height: 13px; }
+.so-badge { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 3px 9px; }
+.so-badge.ok { color: #36d399; background: rgba(54,211,153,.12); }
+.so-badge.off { color: var(--text-muted); background: var(--graphite); }
+.so-conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim); }
+.so-conn svg { width: 14px; height: 14px; }
 .so-compose { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
 .so-label { display: block; font-size: 12.5px; color: var(--text-dim); margin: 14px 0 6px; }
 .so-compose textarea, .so-compose input[type="text"], .so-compose input[type="datetime-local"], .so-compose select {

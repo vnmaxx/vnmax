@@ -8,7 +8,7 @@ import { logout } from './firebase.js';
 
 export { getInternalContent } from './internal-data.js';
 import { getInternalDocs, getLeads, updateLeadStage, addLeadEvent, updateLeadFields, deleteLead } from './internal-data.js';
-import { socialStatus, adaptPosts, saveCampaign, submitCampaign, approveCampaign, rejectCampaign, markPosted, deleteCampaign, getSocialPosts } from './social-data.js';
+import { socialStatus, adaptPosts, saveCampaign, submitCampaign, approveCampaign, rejectCampaign, markPosted, publishNow, deleteCampaign, getSocialPosts, listConnections, startConnect, connectManual, disconnectAccount } from './social-data.js';
 import { videoTools, createVideoJob, deleteVideoJob, getVideoJobs } from './social-data.js';
 
 // Estagios do funil do CRM (NOVO -> ... -> FECHADO / PERDIDO).
@@ -67,6 +67,19 @@ export function renderDenied(user, message) {
     </div></section></div>`;
 }
 
+const NAV = [
+  { tab: 'inst', label: 'Institucional', icon: 'rocket' },
+  { tab: 'crm', label: 'CRM', icon: 'megaphone' },
+  { tab: 'social', label: 'Social', icon: 'send' },
+  { tab: 'video', label: 'Vídeo', icon: 'youtube' },
+  { tab: 'eco', label: 'Ecossistema', icon: 'layers' },
+  { tab: 'road', label: 'Roadmap', icon: 'arrow' },
+  { tab: 'estr', label: 'Estratégia', icon: 'chart' },
+  { tab: 'eng', label: 'Arquitetura & IA', icon: 'brain' },
+  { tab: 'gov', label: 'Governança', icon: 'shield' },
+  { tab: 'docs', label: 'Documentos', icon: 'doc' },
+];
+
 export function renderInternal(user, content) {
   const d = content || {};
   const who = user && (user.email || user.displayName) ? (user.displayName || user.email) : 'Equipe VNMAX';
@@ -76,24 +89,18 @@ export function renderInternal(user, content) {
   <div class="portal">
     ${header(who, true)}
 
-    <section class="portal-hero">
-      <div class="wrap">
-        <h1>VNMAX OS — Central interna</h1>
-        <p>Base operacional e institucional reservada: ecossistema, roadmap, modelo de negócio, arquitetura, engenharia de IA e a base de conhecimento. Conteúdo confidencial — não exibir em materiais públicos.</p>
-        <div class="tabs" id="tabs">
-          <button class="tab active" data-tab="inst">Institucional</button>
-          <button class="tab" data-tab="crm">CRM</button>
-          <button class="tab" data-tab="social">Social</button>
-          <button class="tab" data-tab="video">Vídeo</button>
-          <button class="tab" data-tab="eco">Ecossistema</button>
-          <button class="tab" data-tab="road">Roadmap</button>
-          <button class="tab" data-tab="estr">Estratégia</button>
-          <button class="tab" data-tab="eng">Arquitetura &amp; IA</button>
-          <button class="tab" data-tab="gov">Governança</button>
-          <button class="tab" data-tab="docs">Documentos</button>
-        </div>
-      </div>
-    </section>
+    <div class="portal-shell">
+      <aside class="portal-nav" id="nav">
+        <span class="nav-eyebrow">VNMAX OS</span>
+        <nav class="nav-list">
+          ${NAV.map((n, i) => `<button class="nav-item${i === 0 ? ' active' : ''}" data-tab="${n.tab}">
+            <span class="nav-ico">${icon(n.icon)}</span><span class="nav-label">${n.label}</span>
+          </button>`).join('')}
+        </nav>
+        <div class="nav-foot">Conteúdo confidencial · uso interno</div>
+      </aside>
+
+      <main class="portal-main">
 
     <!-- INSTITUCIONAL -->
     <section class="panel" data-panel="inst">
@@ -128,7 +135,7 @@ export function renderInternal(user, content) {
       <div class="wrap" style="max-width:none">
         <span class="eyebrow">Social · Publicação multi-rede</span>
         <h2 class="section-title">Publicar e agendar nas redes</h2>
-        <p class="lead">Escreva uma vez, adapte para cada rede com IA e publique ou agende em todas as redes do Ayrshare. A agenda mostra o que está programado e o que já foi publicado.</p>
+        <p class="lead">Escolha o cliente, conecte as contas das redes, escreva uma vez e adapte para cada rede com IA. O fluxo passa por aprovação antes de publicar ou agendar.</p>
         <div id="socialMount">
           <div style="display:flex;align-items:center;gap:12px;color:var(--text-dim);padding:30px 0"><span class="spinner"></span> Carregando central de publicação…</div>
         </div>
@@ -258,12 +265,15 @@ export function renderInternal(user, content) {
         <span>Confidencial</span>
       </div>
     </footer>
+
+      </main>
+    </div>
   </div>`;
 }
 
 // Interacoes do portal: abas, logout e carregamento sob demanda dos documentos.
 export function bindInternal(root, onLogout) {
-  const tabs = root.querySelectorAll('.tab');
+  const tabs = root.querySelectorAll('.nav-item');
   const panels = root.querySelectorAll('.panel');
   let docsLoaded = false;
   let crmLoaded = false;
@@ -574,11 +584,14 @@ function socialIntent(platform, caption, media) {
 }
 const SOCIAL_SITE = { instagram: 'https://www.instagram.com/', tiktok: 'https://www.tiktok.com/upload', youtube: 'https://studio.youtube.com/', pinterest: 'https://www.pinterest.com/pin-builder/', gmb: 'https://business.google.com/posts', facebook: 'https://www.facebook.com/', telegram: 'https://web.telegram.org/', whatsapp: 'https://web.whatsapp.com/' };
 
+// Rotulo da conta conectada (ou estado) de uma rede para um cliente.
+const SOCIAL_AUTH_LABEL = { oauth: 'OAuth', token: 'Token/credencial', manual: 'Manual (abrir + colar)' };
+
 async function loadSocial(root) {
   const mount = root.querySelector('#socialMount');
   if (!mount) return;
 
-  let status, posts = [];
+  let status, posts = [], leads = [];
   try { status = await socialStatus(); }
   catch (err) {
     mount.innerHTML = `<p style="color:#ff6b6b;margin-bottom:12px">Não foi possível conectar ao servidor de publicação: ${escapeHtml(err.message || '')}</p><button class="btn btn-ghost" id="soRetry">Tentar de novo</button>`;
@@ -587,102 +600,268 @@ async function loadSocial(root) {
   }
   let agendaError = '';
   try { posts = await getSocialPosts(); } catch (e) { agendaError = e.message || 'Falha ao carregar a agenda.'; }
+  try { leads = await getLeads(); } catch { leads = []; }
 
   const platforms = status.platforms || [];
+  const catalog = status.catalog || platforms.map((p) => ({ key: p.key, label: p.label, authMode: p.authMode || 'manual', connectable: p.connectable }));
   const byKey = Object.fromEntries(platforms.map((p) => [p.key, p]));
+  const catByKey = Object.fromEntries(catalog.map((c) => [c.key, c]));
+  const lbl = (k) => (byKey[k] || catByKey[k] || {}).label || k;
+
+  // Estado da tela.
+  let view = 'publicar';                  // publicar | contas | agenda
+  let client = { id: null, nome: 'VNMAX (geral)' };  // cliente selecionado (null = VNMAX)
+  let connections = [];                   // contas conectadas do cliente atual
+  let connByPlatform = {};
   const selected = new Set();
   let variants = {};
   let busy = false;
-  let editId = null;     // id do rascunho em edicao (null = novo)
+  let editId = null;
 
-  const netChip = (p) => `<button class="so-net" data-net="${p.key}" title="${p.requiresMedia ? 'Exige imagem/vídeo' : ''}">
-      <span class="so-net-ico">${icon(SOCIAL_ICON[p.key] || 'spark')}</span>${escapeHtml(p.label)}
-    </button>`;
+  // Clientes vindos do CRM (leads). Mostra nome + empresa quando houver.
+  const clientLabel = (l) => {
+    const nome = (l.nome || l.contato || 'Sem nome').trim();
+    return l.empresa ? `${nome} · ${l.empresa}` : nome;
+  };
 
-  mount.innerHTML = `
-    <div class="social">
-      <div class="so-status">
-        <span class="so-badge ${status.nvidia ? 'ok' : 'off'}">IA ${status.nvidia ? 'ativa' : 'inativa'}</span>
-        <span class="so-conn">${icon('layers') || ''}${platforms.length} redes</span>
-        <span class="so-hint">Fluxo: rascunho → aprovação → publicar (você confirma a postagem).</span>
-      </div>
-
-      <div class="so-grid">
-        <div class="so-compose">
-          <div class="so-compose-head"><strong id="soMode">Nova publicação</strong><button class="btn btn-ghost so-mini" id="soNew" hidden>+ Nova</button></div>
-          <label class="so-label">Conteúdo base</label>
-          <textarea id="soContent" rows="5" placeholder="Escreva a ideia central do post. A IA adapta para cada rede respeitando os limites."></textarea>
-
-          <label class="so-label">Mídia (URLs públicas https, separadas por espaço ou vírgula) — opcional</label>
-          <input id="soMedia" type="text" placeholder="https://… .jpg / .mp4">
-
-          <label class="so-label">Redes</label>
-          <div class="so-nets">${platforms.map(netChip).join('')}</div>
-
-          <div class="so-row">
-            <label class="so-label" style="margin:0">Tom</label>
-            <select id="soTone" class="crm-filter">${tomos.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
-            <button class="btn btn-ghost" id="soAdapt">${icon('brain')} Adaptar por rede (IA)</button>
-          </div>
-
-          <div id="soVariants" class="so-variants"></div>
-
-          <label class="so-label">Agendar (opcional) — define a data para publicar depois de aprovado</label>
-          <div class="so-publish">
-            <input id="soWhen" type="datetime-local" class="crm-filter">
-            <button class="btn btn-ghost" id="soDraft">${icon('doc')} Salvar rascunho</button>
-            <button class="btn btn-primary" id="soSubmit">${icon('send')} Enviar p/ aprovação</button>
-          </div>
-          <div id="soMsg" class="so-msg"></div>
-        </div>
-
-        <div class="so-agenda">
-          <div class="so-agenda-head"><h3>Fluxo de publicação</h3><button class="btn btn-ghost so-mini" id="soRefresh">${icon('spark')} Atualizar</button></div>
-          <div id="soList"></div>
-        </div>
-      </div>
-    </div>`;
+  async function loadConnections() {
+    try { const r = await listConnections(client.id); connections = r.connections || []; }
+    catch { connections = []; }
+    connByPlatform = Object.fromEntries(connections.map((c) => [c.platform, c]));
+  }
+  await loadConnections();
 
   const $ = (s) => mount.querySelector(s);
-  const msg = (text, kind) => { const el = $('#soMsg'); el.textContent = text || ''; el.className = 'so-msg' + (kind ? ' ' + kind : ''); };
 
-  // -- selecao de redes --
+  // ---------- shell (topbar de cliente + sub-abas) ----------
+  function shell() {
+    const connCount = connections.filter((c) => c.status === 'connected').length;
+    mount.innerHTML = `
+    <div class="social">
+      <div class="so-topbar">
+        <div class="so-client">
+          <label class="so-label" style="margin:0">Cliente</label>
+          <select id="soClient" class="crm-filter">
+            <option value="">VNMAX (geral)</option>
+            ${leads.map((l) => `<option value="${escapeHtml(l.id)}"${l.id === client.id ? ' selected' : ''}>${escapeHtml(clientLabel(l))}</option>`).join('')}
+          </select>
+        </div>
+        <div class="so-topmeta">
+          <span class="so-badge ${status.nvidia ? 'ok' : 'off'}">IA ${status.nvidia ? 'ativa' : 'inativa'}</span>
+          <span class="so-conn">${icon('layers')} ${connCount}/${catalog.length} contas conectadas</span>
+        </div>
+      </div>
+
+      <div class="so-subtabs" id="soSubtabs">
+        <button class="so-subtab${view === 'publicar' ? ' active' : ''}" data-view="publicar">${icon('send')} Publicar</button>
+        <button class="so-subtab${view === 'contas' ? ' active' : ''}" data-view="contas">${icon('grid')} Contas</button>
+        <button class="so-subtab${view === 'agenda' ? ' active' : ''}" data-view="agenda">${icon('clock')} Agenda</button>
+      </div>
+
+      <div id="soView"></div>
+    </div>`;
+
+    $('#soClient').addEventListener('change', async (e) => {
+      snapshotDraft();
+      const id = e.target.value || null;
+      const l = leads.find((x) => x.id === id);
+      client = { id, nome: id ? clientLabel(l) : 'VNMAX (geral)' };
+      await loadConnections();
+      renderView();
+    });
+    mount.querySelectorAll('.so-subtab').forEach((b) => b.addEventListener('click', () => {
+      snapshotDraft();
+      view = b.dataset.view;
+      mount.querySelectorAll('.so-subtab').forEach((x) => x.classList.toggle('active', x.dataset.view === view));
+      renderView();
+    }));
+    renderView();
+  }
+
+  function renderView() {
+    const v = $('#soView');
+    if (view === 'publicar') renderPublicar(v);
+    else if (view === 'contas') renderContas(v);
+    else renderAgenda(v);
+  }
+
+  /* ===================== CONTAS (conexão de redes) ===================== */
+  function connStatusHtml(c, cat) {
+    if (c && c.status === 'connected') return `<span class="so-acc on">${icon('check')} ${escapeHtml(c.accountName || 'Conectada')}</span>`;
+    if (c && c.status === 'manual') return `<span class="so-acc">${escapeHtml(c.accountName || 'Registrada')}</span>`;
+    return `<span class="so-acc off">Não conectada</span>`;
+  }
+  function renderContas(v) {
+    v.innerHTML = `
+      <div class="so-accounts-head">
+        <p class="so-hint">Contas conectadas para <b>${escapeHtml(client.nome)}</b>. Redes OAuth abrem o login da rede; redes por token/manual você registra aqui.</p>
+      </div>
+      <div class="so-accounts">
+        ${catalog.map((cat) => {
+          const c = connByPlatform[cat.key];
+          const disabled = cat.authMode === 'oauth' && !cat.connectable;
+          return `<div class="so-account">
+            <div class="so-account-top">
+              <span class="so-account-net">${icon(SOCIAL_ICON[cat.key] || 'spark')} ${escapeHtml(cat.label)}</span>
+              <span class="so-account-mode">${SOCIAL_AUTH_LABEL[cat.authMode] || cat.authMode}</span>
+            </div>
+            ${connStatusHtml(c, cat)}
+            ${c && c.connectedByEmail ? `<div class="so-meta">por ${escapeHtml(c.connectedByEmail)}</div>` : ''}
+            <div class="so-account-actions">
+              ${c
+                ? `<button class="btn btn-ghost so-mini so-disconnect" data-net="${cat.key}">Desconectar</button>`
+                : ''}
+              ${disabled
+                ? `<span class="so-acc off" title="Defina OAUTH_${cat.key.toUpperCase()}_CLIENT_ID/_SECRET e PUBLIC_API_URL no servidor">OAuth não configurado</span>`
+                : `<button class="btn btn-primary so-mini so-connect" data-net="${cat.key}" data-mode="${cat.authMode}">${c ? 'Reconectar' : 'Conectar'}</button>`}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+
+    v.querySelectorAll('.so-connect').forEach((b) => b.addEventListener('click', () => connectNet(b.dataset.net, b.dataset.mode, b)));
+    v.querySelectorAll('.so-disconnect').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm(`Desconectar ${lbl(b.dataset.net)} de ${client.nome}?`)) return;
+      b.disabled = true;
+      try { await disconnectAccount(b.dataset.net, client.id); await loadConnections(); renderContas(v); }
+      catch (e) { b.disabled = false; alert(e.message); }
+    }));
+  }
+
+  async function connectNet(net, mode, btn) {
+    if (mode === 'oauth') {
+      btn.disabled = true; const old = btn.textContent; btn.textContent = 'Abrindo…';
+      try {
+        const r = await startConnect({ platform: net, clienteId: client.id, clienteNome: client.nome });
+        const pop = window.open(r.authorizeUrl, 'vnmax-oauth', 'width=620,height=720');
+        const onMsg = async (ev) => {
+          if (!ev.data || ev.data.type !== 'vnmax-oauth') return;
+          window.removeEventListener('message', onMsg);
+          await loadConnections(); renderView();
+        };
+        window.addEventListener('message', onMsg);
+        // Fallback: se o popup fechar sem postMessage, recarrega ao focar a janela.
+        const poll = setInterval(async () => { if (pop && pop.closed) { clearInterval(poll); window.removeEventListener('message', onMsg); await loadConnections(); renderView(); } }, 1200);
+      } catch (e) { alert(e.message); btn.disabled = false; btn.textContent = old; }
+      return;
+    }
+    // token / manual: registra o @ da conta (e token quando aplicável).
+    const accountName = prompt(`Conta/@ de ${lbl(net)} para ${client.nome}:`, connByPlatform[net]?.accountName || '');
+    if (accountName == null || !accountName.trim()) return;
+    let token = null;
+    if (mode === 'token') {
+      token = prompt(`Token/credencial de ${lbl(net)} (deixe em branco se for só registrar a conta):`, '') || '';
+      token = token.trim() || null;
+    }
+    btn.disabled = true;
+    try {
+      await connectManual({ platform: net, clienteId: client.id, clienteNome: client.nome, accountName: accountName.trim(), token });
+      await loadConnections(); renderView();
+    } catch (e) { btn.disabled = false; alert(e.message); }
+  }
+
+  /* ===================== PUBLICAR (composer) ===================== */
+  function netChip(p) {
+    const c = connByPlatform[p.key];
+    const conn = c && c.status === 'connected' ? `<span class="so-net-acc">${escapeHtml(c.accountName || 'conectada')}</span>` : '';
+    return `<button class="so-net" data-net="${p.key}" title="${p.requiresMedia ? 'Exige imagem/vídeo' : ''}">
+      <span class="so-net-ico">${icon(SOCIAL_ICON[p.key] || 'spark')}</span>${escapeHtml(p.label)}${conn}
+    </button>`;
+  }
+
+  function renderPublicar(v) {
+    v.innerHTML = `
+      <div class="so-compose">
+        <div class="so-compose-head">
+          <strong id="soMode">${editId ? 'Editando rascunho' : 'Nova publicação'}</strong>
+          <span class="so-for">para <b>${escapeHtml(client.nome)}</b></span>
+          <button class="btn btn-ghost so-mini" id="soNew"${editId ? '' : ' hidden'}>+ Nova</button>
+        </div>
+        <label class="so-label">Conteúdo base</label>
+        <textarea id="soContent" rows="5" placeholder="Escreva a ideia central do post. A IA adapta para cada rede respeitando os limites."></textarea>
+
+        <label class="so-label">Mídia (URLs públicas https, separadas por espaço ou vírgula) — opcional</label>
+        <input id="soMedia" type="text" placeholder="https://… .jpg / .mp4">
+
+        <label class="so-label">Redes <span class="so-label-dim">(verde = conta conectada para este cliente)</span></label>
+        <div class="so-nets">${platforms.map(netChip).join('')}</div>
+
+        <div class="so-row">
+          <label class="so-label" style="margin:0">Tom</label>
+          <select id="soTone" class="crm-filter">${tomos.map(([val, l]) => `<option value="${val}">${l}</option>`).join('')}</select>
+          <button class="btn btn-ghost" id="soAdapt">${icon('brain')} Adaptar por rede (IA)</button>
+        </div>
+
+        <div id="soVariants" class="so-variants"></div>
+
+        <label class="so-label">Agendar (opcional) — define a data para publicar depois de aprovado</label>
+        <div class="so-publish">
+          <input id="soWhen" type="datetime-local" class="crm-filter">
+          <button class="btn btn-ghost" id="soDraft">${icon('doc')} Salvar rascunho</button>
+          <button class="btn btn-primary" id="soSubmit">${icon('send')} Enviar p/ aprovação</button>
+        </div>
+        <div id="soMsg" class="so-msg"></div>
+      </div>`;
+
+    // Restaura o que já havia sido digitado (sobrevive à troca de sub-abas/cliente).
+    $('#soContent').value = draftCache.content || '';
+    $('#soMedia').value = (draftCache.mediaUrls || []).join(' ');
+    $('#soWhen').value = draftCache.when || '';
+    syncNetUI();
+    renderVariants();
+
+    mount.querySelectorAll('.so-net').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.net;
+      if (selected.has(k)) selected.delete(k); else selected.add(k);
+      b.classList.toggle('on', selected.has(k));
+    }));
+    $('#soNew').addEventListener('click', clearComposer);
+    $('#soAdapt').addEventListener('click', adapt);
+    $('#soDraft').addEventListener('click', () => saveDraft(false));
+    $('#soSubmit').addEventListener('click', () => saveDraft(true));
+  }
+
+  const msg = (text, kind) => { const el = $('#soMsg'); if (el) { el.textContent = text || ''; el.className = 'so-msg' + (kind ? ' ' + kind : ''); } };
   function syncNetUI() { mount.querySelectorAll('.so-net').forEach((b) => b.classList.toggle('on', selected.has(b.dataset.net))); }
-  mount.querySelectorAll('.so-net').forEach((b) => b.addEventListener('click', () => {
-    const k = b.dataset.net;
-    if (selected.has(k)) selected.delete(k); else selected.add(k);
-    b.classList.toggle('on', selected.has(k));
-  }));
 
-  // Carrega um rascunho/rejeitado no composer para edicao.
+  // Cache do que o usuário digitou (sobrevive a re-render do composer).
+  let draftCache = { content: '', mediaUrls: [], when: '' };
+  function snapshotDraft() {
+    if (!$('#soContent')) return;
+    draftCache = { content: $('#soContent').value, mediaUrls: collectMedia(), when: $('#soWhen').value };
+  }
+
   function editDraft(p) {
     editId = p.id;
-    $('#soContent').value = p.content || '';
-    $('#soMedia').value = (p.mediaUrls || []).join(' ');
-    selected.clear(); (p.platforms || []).forEach((k) => selected.add(k)); syncNetUI();
-    variants = {}; (p.targets || []).forEach((t) => { variants[t.platform] = t.caption || ''; }); renderVariants();
-    $('#soWhen').value = p.scheduleAt ? new Date(p.scheduleAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
-    $('#soMode').textContent = 'Editando rascunho'; $('#soNew').hidden = false;
-    msg(''); mount.querySelector('.so-compose').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    client = { id: p.clienteId || null, nome: p.clienteNome || 'VNMAX (geral)' };
+    selected.clear(); (p.platforms || []).forEach((k) => selected.add(k));
+    variants = {}; (p.targets || []).forEach((t) => { variants[t.platform] = t.caption || ''; });
+    draftCache = {
+      content: p.content || '',
+      mediaUrls: p.mediaUrls || [],
+      when: p.scheduleAt ? new Date(p.scheduleAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '',
+    };
+    view = 'publicar';
+    loadConnections().then(() => { shell(); mount.querySelector('.social').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   }
   function clearComposer() {
-    editId = null; $('#soContent').value = ''; $('#soMedia').value = ''; $('#soWhen').value = '';
-    selected.clear(); syncNetUI(); variants = {}; renderVariants();
-    $('#soMode').textContent = 'Nova publicação'; $('#soNew').hidden = true; msg('');
+    editId = null; selected.clear(); variants = {}; draftCache = { content: '', mediaUrls: [], when: '' };
+    if ($('#soContent')) { $('#soContent').value = ''; $('#soMedia').value = ''; $('#soWhen').value = ''; }
+    if ($('#soMode')) $('#soMode').textContent = 'Nova publicação';
+    if ($('#soNew')) $('#soNew').hidden = true;
+    syncNetUI(); renderVariants(); msg('');
   }
-  $('#soNew').addEventListener('click', clearComposer);
 
-  // -- editores de variantes (apos adaptar) --
   function renderVariants() {
-    const cont = $('#soVariants');
+    const cont = $('#soVariants'); if (!cont) return;
     const keys = Object.keys(variants);
     if (!keys.length) { cont.innerHTML = ''; return; }
     cont.innerHTML = `<div class="so-vhead">Versões por rede (edite à vontade)</div>` + keys.map((k) => {
       const p = byKey[k] || { label: k, limit: 0 };
-      const v = variants[k] || '';
+      const val = variants[k] || '';
       return `<div class="so-var" data-net="${k}">
-        <div class="so-var-top"><span class="so-var-name">${icon(SOCIAL_ICON[k] || 'spark')} ${escapeHtml(p.label)}</span><span class="so-count" data-for="${k}">${v.length}/${p.limit}</span></div>
-        <textarea class="so-var-text" data-net="${k}" rows="3">${escapeHtml(v)}</textarea>
+        <div class="so-var-top"><span class="so-var-name">${icon(SOCIAL_ICON[k] || 'spark')} ${escapeHtml(p.label)}</span><span class="so-count" data-for="${k}">${val.length}/${p.limit}</span></div>
+        <textarea class="so-var-text" data-net="${k}" rows="3">${escapeHtml(val)}</textarea>
       </div>`;
     }).join('');
     cont.querySelectorAll('.so-var-text').forEach((ta) => ta.addEventListener('input', () => {
@@ -693,11 +872,10 @@ async function loadSocial(root) {
   }
 
   function collectMedia() {
-    return ($('#soMedia').value || '').split(/[\s,]+/).map((u) => u.trim()).filter((u) => /^https:\/\/\S+$/i.test(u));
+    return ($('#soMedia')?.value || '').split(/[\s,]+/).map((u) => u.trim()).filter((u) => /^https:\/\/\S+$/i.test(u));
   }
 
-  // -- adaptar por IA --
-  $('#soAdapt').addEventListener('click', async () => {
+  async function adapt() {
     const content = $('#soContent').value.trim();
     const chosen = [...selected];
     if (!content) return msg('Escreva o conteúdo base primeiro.', 'err');
@@ -708,14 +886,11 @@ async function loadSocial(root) {
       const r = await adaptPosts({ content, platforms: chosen, tone: $('#soTone').value });
       variants = r.variants || {};
       renderVariants();
-      const miss = (r.missing || []).map((k) => (byKey[k] || {}).label || k);
-      msg(miss.length ? `Adaptado. Atenção: ${miss.join(', ')} não foi adaptado — revise manualmente.` : 'Textos adaptados. Revise e publique ou agende.', miss.length ? 'err' : 'ok');
+      const miss = (r.missing || []).map((k) => lbl(k));
+      msg(miss.length ? `Adaptado. Atenção: ${miss.join(', ')} não foi adaptado — revise manualmente.` : 'Textos adaptados. Revise e envie para aprovação.', miss.length ? 'err' : 'ok');
     } catch (e) { msg('Falha ao adaptar: ' + e.message, 'err'); }
     finally { busy = false; b.disabled = false; b.innerHTML = `${icon('brain')} Adaptar por rede (IA)`; }
-  });
-
-  // -- salvar rascunho / enviar para aprovacao --
-  async function refresh() { posts = await getSocialPosts().catch(() => posts); agendaError = ''; renderList(); }
+  }
 
   async function saveDraft(submit) {
     const content = $('#soContent').value.trim();
@@ -724,12 +899,12 @@ async function loadSocial(root) {
     if (!chosen.length) return msg('Selecione ao menos uma rede.', 'err');
     if (!content && !mediaUrls.length) return msg('Escreva um conteúdo ou informe uma mídia.', 'err');
     let scheduleAt = null;
-    const v = $('#soWhen').value;
-    if (v) { const ms = new Date(v).getTime(); if (!Number.isFinite(ms) || ms < Date.now() + 120000) return msg('O agendamento precisa ser ao menos 2 min no futuro.', 'err'); scheduleAt = ms; }
+    const vv = $('#soWhen').value;
+    if (vv) { const ms = new Date(vv).getTime(); if (!Number.isFinite(ms) || ms < Date.now() + 120000) return msg('O agendamento precisa ser ao menos 2 min no futuro.', 'err'); scheduleAt = ms; }
     if (busy) return; busy = true;
     const dBtn = $('#soDraft'), sBtn = $('#soSubmit'); dBtn.disabled = sBtn.disabled = true; msg('Salvando…');
     try {
-      const payload = { content, platforms: chosen, variants, tone: $('#soTone').value, mediaUrls };
+      const payload = { content, platforms: chosen, variants, tone: $('#soTone').value, mediaUrls, clienteId: client.id, clienteNome: client.id ? client.nome : null };
       if (scheduleAt) payload.scheduleAt = scheduleAt;
       if (editId) payload.id = editId;
       const r = await saveCampaign(payload);
@@ -740,24 +915,32 @@ async function loadSocial(root) {
     } catch (e) { msg('Falha ao salvar: ' + e.message, 'err'); }
     finally { busy = false; dBtn.disabled = sBtn.disabled = false; }
   }
-  $('#soDraft').addEventListener('click', () => saveDraft(false));
-  $('#soSubmit').addEventListener('click', () => saveDraft(true));
 
-  $('#soRefresh').addEventListener('click', async (e) => {
-    const b = e.currentTarget; b.disabled = true;
-    try { await refresh(); } catch (err) { msg('Falha ao atualizar: ' + err.message, 'err'); }
-    finally { b.disabled = false; }
-  });
-
-  // -- fluxo de publicacao (lista de campanhas por estado) --
-  const lbl = (k) => (byKey[k] || {}).label || k;
+  /* ===================== AGENDA (fluxo de publicação) ===================== */
+  async function refresh() { posts = await getSocialPosts().catch(() => posts); agendaError = ''; if (view === 'agenda') renderView(); }
   const findTarget = (id, net) => { const p = posts.find((x) => x.id === id); return p && (p.targets || []).find((t) => t.platform === net); };
 
-  function renderList() {
-    const list = $('#soList');
+  function renderAgenda(v) {
+    // Filtra pela seleção de cliente (null = VNMAX geral).
+    const mine = posts.filter((p) => (p.clienteId || null) === (client.id || null));
+    v.innerHTML = `
+      <div class="so-agenda-head">
+        <h3>Fluxo de publicação — ${escapeHtml(client.nome)}</h3>
+        <button class="btn btn-ghost so-mini" id="soRefresh">${icon('spark')} Atualizar</button>
+      </div>
+      <div id="soList"></div>`;
+    $('#soRefresh').addEventListener('click', async (e) => {
+      const b = e.currentTarget; b.disabled = true;
+      try { posts = await getSocialPosts(); agendaError = ''; renderAgenda(v); } catch (err) { alert('Falha ao atualizar: ' + err.message); b.disabled = false; }
+    });
+    renderList(mine);
+  }
+
+  function renderList(items) {
+    const list = $('#soList'); if (!list) return;
     if (agendaError && !posts.length) { list.innerHTML = `<div class="so-empty" style="color:#ff6b6b">Não foi possível carregar: ${escapeHtml(agendaError)}</div>`; return; }
-    if (!posts.length) { list.innerHTML = '<div class="so-empty">Nada ainda. Crie a primeira publicação ao lado.</div>'; return; }
-    const ordered = [...posts].sort((a, b) => {
+    if (!items.length) { list.innerHTML = '<div class="so-empty">Nada para este cliente ainda. Vá em <b>Publicar</b> para criar.</div>'; return; }
+    const ordered = [...items].sort((a, b) => {
       const oa = (SOCIAL_STATUS[a.status] || {}).ord ?? 9, ob = (SOCIAL_STATUS[b.status] || {}).ord ?? 9;
       return oa - ob || tsMs(b.updatedAt || b.createdAt) - tsMs(a.updatedAt || a.createdAt);
     });
@@ -774,12 +957,17 @@ async function loadSocial(root) {
         return `<span class="so-target${ok}">${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${ic}</a>` : ic}${t.posted ? ' ✓' : ''}</span>`;
       }).join('');
 
-      // Painel de publicacao semiautomatica (apenas quando aprovado/agendado).
       const pub = ready ? `<div class="so-pub">${targets.map((t) => {
+        const conn = connByPlatform[t.platform];
+        const connected = conn && conn.status === 'connected';
+        const accTag = connected ? `<span class="so-net-acc">${escapeHtml(conn.accountName || 'conectada')}</span>` : '';
+        const cat = catByKey[t.platform] || {};
+        const canApi = cat.api && connected;   // publica automaticamente via API
         const intent = socialIntent(t.platform, t.caption, p.mediaUrls) || SOCIAL_SITE[t.platform] || null;
         const openBtn = intent ? `<a class="btn btn-ghost so-mini" href="${escapeHtml(intent)}" target="_blank" rel="noopener noreferrer">Abrir ${escapeHtml(lbl(t.platform))}</a>` : '';
         return `<div class="so-pub-row">
-          <span class="so-pub-net">${icon(SOCIAL_ICON[t.platform] || 'spark')} ${escapeHtml(lbl(t.platform))}</span>
+          <span class="so-pub-net">${icon(SOCIAL_ICON[t.platform] || 'spark')} ${escapeHtml(lbl(t.platform))}${accTag}</span>
+          ${!t.posted && canApi ? `<button class="btn btn-primary so-mini so-publish" data-id="${p.id}" data-net="${t.platform}">${icon('send')} Publicar agora</button>` : ''}
           <button class="btn btn-ghost so-mini so-copy" data-id="${p.id}" data-net="${t.platform}">Copiar texto</button>
           ${openBtn}
           ${t.posted
@@ -788,7 +976,6 @@ async function loadSocial(root) {
         </div>`;
       }).join('')}</div>` : '';
 
-      // Acoes por estado.
       let actions = '';
       if (p.status === 'rascunho' || p.status === 'rejeitado') {
         actions = `<button class="btn btn-ghost so-mini so-edit" data-id="${p.id}">Editar</button>
@@ -803,6 +990,7 @@ async function loadSocial(root) {
 
       return `<div class="so-item">
         <div class="so-item-top"><span class="so-tag" style="--tc:${st.c}">${escapeHtml(st.l)}</span><span class="so-when">${icon('clock')} ${escapeHtml(when)}</span></div>
+        ${p.clienteNome ? `<div class="so-item-client">${icon('user')} ${escapeHtml(p.clienteNome)}</div>` : ''}
         <div class="so-item-body">${escapeHtml((p.content || '').slice(0, 200)) || '<i>(sem texto)</i>'}</div>
         <div class="so-targets">${chips}</div>
         ${p.status === 'rejeitado' && p.rejectReason ? `<div class="so-reject">Rejeitado: ${escapeHtml(p.rejectReason)}</div>` : ''}
@@ -812,7 +1000,6 @@ async function loadSocial(root) {
       </div>`;
     }).join('');
 
-    // wiring
     const act = async (el, fn, confirmMsg) => {
       if (confirmMsg && !confirm(confirmMsg)) return;
       el.disabled = true;
@@ -823,6 +1010,11 @@ async function loadSocial(root) {
     list.querySelectorAll('.so-approve').forEach((b) => b.addEventListener('click', () => act(b, () => approveCampaign(b.dataset.id))));
     list.querySelectorAll('.so-reject').forEach((b) => b.addEventListener('click', () => { const r = prompt('Motivo da rejeição:'); if (r === null) return; act(b, () => rejectCampaign(b.dataset.id, r)); }));
     list.querySelectorAll('.so-del').forEach((b) => b.addEventListener('click', () => act(b, () => deleteCampaign(b.dataset.id), 'Excluir esta campanha?')));
+    list.querySelectorAll('.so-publish').forEach((b) => b.addEventListener('click', () => {
+      if (!confirm(`Publicar agora em ${lbl(b.dataset.net)} via API?`)) return;
+      const old = b.innerHTML; b.disabled = true; b.textContent = 'Publicando…';
+      act(b, () => publishNow(b.dataset.id, b.dataset.net)).catch(() => { b.disabled = false; b.innerHTML = old; });
+    }));
     list.querySelectorAll('.so-mark').forEach((b) => b.addEventListener('click', () => { const url = prompt('Link do post publicado (opcional):') || ''; act(b, () => markPosted(b.dataset.id, b.dataset.net, url.trim() || null, false)); }));
     list.querySelectorAll('.so-unpost').forEach((b) => b.addEventListener('click', () => act(b, () => markPosted(b.dataset.id, b.dataset.net, null, true))));
     list.querySelectorAll('.so-copy').forEach((b) => b.addEventListener('click', async () => {
@@ -832,7 +1024,7 @@ async function loadSocial(root) {
     }));
   }
 
-  renderList();
+  shell();
 }
 
 /* ---------------- VÍDEO: worker de edição (video-use + hyperframes) --------------- */
