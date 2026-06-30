@@ -1,5 +1,5 @@
 // Landing page publica da VNMAX (conteudo comercial e institucional aberto).
-import logoUrl from '../logo.png';
+import logoUrl from '../logo-wordmark.png';
 import { brand, publicContent as c } from './data.js';
 import { icon } from './icons.js';
 
@@ -7,7 +7,7 @@ export function renderLanding() {
   return `
   <header class="site-header" id="siteHeader">
     <div class="wrap nav">
-      <a class="brand-mark" href="#top" aria-label="VNMAX"><img src="${logoUrl}" alt="VNMAX"></a>
+      <a class="brand-mark" href="#top" aria-label="VNMAX"><img src="${logoUrl}" alt="VNMAX" width="69" height="46"></a>
       <nav class="nav-links">
         <a href="#sobre">Sobre</a>
         <a href="#servicos">Serviços</a>
@@ -137,7 +137,7 @@ export function renderLanding() {
     <div class="wrap">
       <div class="footer-top">
         <div class="footer-brand">
-          <img src="${logoUrl}" alt="VNMAX" style="width:42px;height:42px">
+          <img src="${logoUrl}" alt="VNMAX" width="90" height="60">
           <p>${brand.slogan}.</p>
           <div class="social">
             ${brand.social.map((s) => `<a href="${s.url}" target="_blank" rel="noopener noreferrer" aria-label="${s.name}" title="${s.name}">${icon(s.icon)}</a>`).join('')}

@@ -1,7 +1,7 @@
 // Portal interno/institucional (renderizado apos login bem-sucedido).
 // O conteudo (`content`) vem do Firestore (internal/content), buscado por main.js.
 // Os documentos da base (internal_docs) sao carregados sob demanda.
-import logoUrl from '../logo.png';
+import logoUrl from '../logo-wordmark.png';
 import { brand } from './data.js';
 import { icon } from './icons.js';
 import { logout } from './firebase.js';
@@ -40,7 +40,7 @@ function header(who, badge) {
   return `
     <header class="portal-header">
       <div class="wrap nav">
-        <a class="brand-mark" href="#"><img src="${logoUrl}" alt="VNMAX">${badge ? '<span class="portal-badge">Interno</span>' : ''}</a>
+        <a class="brand-mark" href="#"><img src="${logoUrl}" alt="VNMAX" width="69" height="46">${badge ? '<span class="portal-badge">Interno</span>' : ''}</a>
         <div class="user-box">
           <span>${who}</span>
           <button class="btn btn-ghost" id="logoutBtn">${icon('logout')} Sair</button>

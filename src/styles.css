@@ -97,7 +97,9 @@ img { max-width: 100%; display: block; }
 .site-header.scrolled { border-bottom-color: var(--border); background: rgba(5, 5, 5, 0.82); }
 .nav { display: flex; align-items: center; justify-content: space-between; height: 68px; }
 .brand-mark { display: flex; align-items: center; gap: 10px; }
-.brand-mark img { width: 34px; height: 34px; object-fit: contain; }
+/* Logo agora e um wordmark largo (VN MAX, ~1.5:1): sizamos pela ALTURA com
+   largura automatica para nao distorcer. aspect-ratio reserva o espaco (evita CLS). */
+.brand-mark img { height: 46px; width: auto; object-fit: contain; aspect-ratio: 1536 / 1024; }
 .brand-mark .wordmark { font-size: 19px; }
 .nav-links { display: flex; gap: 28px; font-size: 14.5px; color: var(--text-dim); }
 .nav-links a { transition: color var(--t); }
@@ -210,6 +212,7 @@ img { max-width: 100%; display: block; }
 .footer-top { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 40px; }
 @media (max-width: 760px) { .footer-top { grid-template-columns: 1fr; gap: 30px; } }
 .footer-brand .wordmark { font-size: 26px; }
+.footer-brand img { height: 60px; width: auto; object-fit: contain; aspect-ratio: 1536 / 1024; }
 .footer-brand p { color: var(--text-dim); font-size: 14.5px; max-width: 32ch; margin-top: 14px; }
 .social { display: flex; gap: 10px; margin-top: 20px; }
 .social a { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 10px; color: var(--text-dim); transition: color var(--t), border-color var(--t), transform var(--t), background var(--t); }
@@ -398,8 +401,12 @@ img { max-width: 100%; display: block; }
 .crm-card-contato { color: var(--text-dim); font-size: 13px; margin-top: 5px; word-break: break-word; }
 .crm-card-assunto { color: var(--text); font-size: 13px; margin-top: 5px; }
 .crm-card-date { color: var(--text-muted); font-size: 11.5px; margin-top: 7px; }
-.crm-drawer { position: fixed; inset: 0; z-index: 86; background: rgba(0,0,0,.55); backdrop-filter: blur(4px); opacity: 0; transition: opacity var(--t); display: flex; justify-content: flex-end; }
-.crm-drawer.show { opacity: 1; }
+.crm-drawer { position: fixed; inset: 0; z-index: 86; background: rgba(0,0,0,.55); backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity var(--t); display: flex; justify-content: flex-end; }
+/* Sem esta regra, o display:flex acima venceria o [hidden] do navegador e o
+   drawer (inset:0, tela cheia) ficaria invisivel mas capturando TODOS os cliques
+   -> a area interna inteira "travava" ao abrir o CRM. */
+.crm-drawer[hidden] { display: none; }
+.crm-drawer.show { opacity: 1; pointer-events: auto; }
 .crm-drawer-inner { width: 430px; max-width: 92vw; height: 100%; background: var(--bg-elev); border-left: 1px solid var(--border); padding: 26px; overflow-y: auto; transform: translateX(24px); transition: transform var(--t) var(--ease); position: relative; }
 .crm-drawer.show .crm-drawer-inner { transform: none; }
 .crm-drawer-x { position: absolute; top: 16px; right: 18px; background: none; border: none; color: var(--text-dim); font-size: 26px; cursor: pointer; }
