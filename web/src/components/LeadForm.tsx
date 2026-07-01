@@ -102,7 +102,7 @@ export function LeadForm({ onClose }: LeadFormProps) {
         ) : (
           <>
             <div className="mb-1 font-mono text-[10px] tracking-[0.4em] text-neon-cyan uppercase">
-              {siteContent.company} — Programa Nexus Digital 90
+              {siteContent.company} — Programa VNMAX Digital 90
             </div>
             <h2 className="font-display text-3xl font-bold leading-tight tracking-wide text-white uppercase md:text-4xl">
               Raio-X Digital gratuito

@@ -13,7 +13,7 @@ import { useDeviceProfile } from './hooks/useDeviceProfile';
 import { adminSignIn, watchAuth, startSessionSync } from './lib/firebase';
 import { scrollState } from './lib/scrollState';
 import type { AdminUser } from './types/admin';
-// Nexus AI Copilot - Importação desacoplada
+// VNMAX AI Copilot - Importação desacoplada
 import { useCopilot, FloatingButton, CopilotWindow } from './components/copilot';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -28,7 +28,7 @@ export default function App() {
   const profile = useDeviceProfile();
   const lenisRef = useRef<Lenis | null>(null);
 
-  // ------------------------------------------------ Nexus AI Copilot
+  // ------------------------------------------------ VNMAX AI Copilot
   const copilot = useCopilot();
 
   // ------------------------------------------------ estado do admin
@@ -42,7 +42,7 @@ export default function App() {
       watchAuth((u) => {
         setUser(u ? { uid: u.uid, email: u.email, displayName: u.displayName } : null);
         // "manter conectado": se já há sessão e a preferência está ligada, abre o CRM direto.
-        if (u && localStorage.getItem('nexus_keep') !== '0') setDashboardOpen(true);
+        if (u && localStorage.getItem('vnmax_keep') !== '0') setDashboardOpen(true);
       }),
     [],
   );
@@ -55,7 +55,7 @@ export default function App() {
   useSecretKeyboardLogin(async (email, password) => {
     try {
       // sempre autentica com quem está digitando agora (corrige o e-mail trocado).
-      await adminSignIn(email, password, localStorage.getItem('nexus_keep') !== '0');
+      await adminSignIn(email, password, localStorage.getItem('vnmax_keep') !== '0');
       setDashboardOpen(true);
     } catch {
       // falha silenciosa (credenciais inválidas) — mantém o acesso oculto
@@ -168,7 +168,7 @@ export default function App() {
         <AdminDashboard user={user} onSignOut={() => setDashboardOpen(false)} />
       )}
 
-      {/* ------------------------------------------ Nexus AI Copilot */}
+      {/* ------------------------------------------ VNMAX AI Copilot */}
       <FloatingButton copilot={copilot} />
       <CopilotWindow copilot={copilot} />
     </div>

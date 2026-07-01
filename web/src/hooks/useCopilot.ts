@@ -9,7 +9,7 @@ import type {
   DocumentFile,
 } from '../types/copilot';
 
-const STORAGE_KEY = 'nexus-copilot-messages';
+const STORAGE_KEY = 'vnmax-copilot-messages';
 
 const initialState: CopilotState = {
   isOpen: false,

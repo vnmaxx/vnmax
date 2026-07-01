@@ -1,6 +1,6 @@
 /**
  * ============================================================
- *  Sincronização CRM Nexus Holding  <->  Studio-IA Backend
+ *  Sincronização CRM VNMAX  <->  Studio-IA Backend
  * ============================================================
  *  O CRM é o único lado com acesso aos dois mundos (Firestore +
  *  Studio Bridge), então ele orquestra a sincronização

@@ -1,4 +1,4 @@
-// Nexus AI Copilot - Exportação de componentes
+// VNMAX AI Copilot - Exportação de componentes
 // Arquitetura desacoplada e plug-and-play
 
 export { FloatingButton } from './FloatingButton';

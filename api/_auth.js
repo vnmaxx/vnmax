@@ -6,7 +6,7 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "vnmax-6a660";
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "vinicius@nexus.com")
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "vnmax6@gmail.com")
   .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
 
 // Quando "true", o proxy EXIGE admin autenticado. Deixe desligado ate confirmar

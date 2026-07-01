@@ -19,7 +19,7 @@ export interface TourStep {
   module?: ModuleKey;
 }
 
-const SEEN_KEY = 'nexus_tour_seen_v2';
+const SEEN_KEY = 'vnmax_tour_seen_v2';
 export const hasSeenTour = (): boolean => {
   try { return localStorage.getItem(SEEN_KEY) === '1'; } catch { return false; }
 };
@@ -29,7 +29,7 @@ export const markTourSeen = (): void => {
 
 /** Tour de boas-vindas: um foco por categoria do menu. */
 export const globalTour: TourStep[] = [
-  { title: 'Bem-vindo ao CRM Nexus 👋', body: 'Em 1 minuto eu te mostro cada área. Pode pular quando quiser e refazer pelo botão “?” no topo.' },
+  { title: 'Bem-vindo ao CRM VNMAX 👋', body: 'Em 1 minuto eu te mostro cada área. Pode pular quando quiser e refazer pelo botão “?” no topo.' },
   { target: 'nav-visaogeral', module: 'visaogeral', title: 'Visão geral', body: 'Seu painel executivo: indicadores, funil comercial, próximos compromissos e a lista de leads (a captação do site cai aqui).' },
   { target: 'nav-pipeline', module: 'pipeline', title: 'Pipeline', body: 'O kanban do comercial — arraste os leads entre os estágios, de “novo” até “fechado”.' },
   { target: 'nav-clientes', module: 'clientes', title: 'Clientes', body: 'Sua base de clientes (já com os dados de projeto). Abra um cliente para ver Dados, Propostas, Histórico e Entregáveis num lugar só. Sincroniza com a fábrica de mídia.' },
@@ -68,7 +68,7 @@ export const tabTours: Partial<Record<ModuleKey, TourStep[]>> = {
   ],
   campanhas: [
     { target: 'nav-campanhas', title: 'Campanhas & Captação', body: 'Cadastre investimento e resultados por canal (Google Ads, Meta Ads…) — CPL, CPC, CPA, CTR e ROAS. Os clientes da fábrica de mídia entram como cards ◆ Mídia, com etapas e entregáveis.' },
-    { title: 'Produção da Mídia', body: 'Use o botão “↻ Mídia” para sincronizar a produção do Nexus Digital 90 pela Nexus Bridge. Clique em “ver entregáveis” num card ◆ Mídia para os arquivos.' },
+    { title: 'Produção da Mídia', body: 'Use o botão “↻ Mídia” para sincronizar a produção do VNMAX Digital 90 pela VNMAX Bridge. Clique em “ver entregáveis” num card ◆ Mídia para os arquivos.' },
   ],
   config: [
     { target: 'nav-config', title: 'Configurações', body: 'Edite sua conta e senha, cadastre a equipe (donos) e altere todos os textos do site público na seção “Conteúdo do site”.' },

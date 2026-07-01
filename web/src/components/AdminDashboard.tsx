@@ -167,7 +167,7 @@ export function AdminDashboard({ user, onSignOut }: AdminDashboardProps) {
       <aside className="relative z-10 hidden w-60 shrink-0 flex-col border-r border-white/10 bg-black/40 backdrop-blur-md md:flex">
         <div className="border-b border-white/10 px-5 py-5">
           <div className="font-mono text-[10px] tracking-[0.4em] text-neon-cyan uppercase">{siteContent.company}</div>
-          <div className="font-display text-xl font-bold tracking-wide text-white uppercase">CRM Nexus</div>
+          <div className="font-display text-xl font-bold tracking-wide text-white uppercase">CRM VNMAX</div>
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
           {tabs.map(navItem)}
@@ -187,7 +187,7 @@ export function AdminDashboard({ user, onSignOut }: AdminDashboardProps) {
         <div className="flex h-full w-full flex-col px-4 py-4 md:px-6 md:py-5 xl:px-8">
           {/* topo mobile: marca + sair + nav horizontal */}
           <div className="mb-4 flex items-center justify-between md:hidden">
-            <div className="font-display text-xl font-bold tracking-wide text-white uppercase">CRM Nexus</div>
+            <div className="font-display text-xl font-bold tracking-wide text-white uppercase">CRM VNMAX</div>
             <button onClick={handleSignOut} className="rounded-lg border border-white/15 px-3 py-1.5 font-mono text-[10px] tracking-[0.2em] text-white/60 uppercase">Sair</button>
           </div>
           <nav className="mb-6 flex gap-1.5 overflow-x-auto pb-1 md:hidden">

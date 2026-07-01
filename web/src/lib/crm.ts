@@ -110,7 +110,7 @@ export interface BaseRecord {
 }
 
 /**
- * Lead unificado — schema compartilhado entre Nexus Holding e vnmax.
+ * Lead unificado — schema compartilhado entre VNMAX e vnmax.
  * Espelha a estrutura de /leads no Firestore (vnmax-6a660).
  *
  * IMPORTANTE: Os campos novos (nome, email, whatsapp, etc.) vêm do Firestore
@@ -120,11 +120,11 @@ export interface BaseRecord {
  * gradual, mas devem ser removidas após a UI ser atualizada por outro agente.
  *
  * MAPEAMENTO DE STATUS:
- *   novo (Nexus) ← → NOVO (vnmax)
- *   qualificacao (Nexus) ← → CONTATO (vnmax)
- *   reuniao, proposta, negociacao (Nexus) ← → PROPOSTA (vnmax)
- *   fechado (Nexus) ← → FECHADO (vnmax)
- *   perdido (Nexus) ← → PERDIDO (vnmax)
+ *   novo (VNMAX) ← → NOVO (vnmax)
+ *   qualificacao (VNMAX) ← → CONTATO (vnmax)
+ *   reuniao, proposta, negociacao (VNMAX) ← → PROPOSTA (vnmax)
+ *   fechado (VNMAX) ← → FECHADO (vnmax)
+ *   perdido (VNMAX) ← → PERDIDO (vnmax)
  */
 export interface Lead extends BaseRecord {
   // =================================================================
@@ -164,7 +164,7 @@ export interface Lead extends BaseRecord {
   ip?: string;            // IP do visitante
 
   // =================================================================
-  // COMPATIBILIDADE COM UI EXISTENTE (Nexus Holding original)
+  // COMPATIBILIDADE COM UI EXISTENTE (VNMAX original)
   // =================================================================
   // TODO: Remover após adaptar AdminDashboard.tsx e outros componentes.
   // Estes campos serão gradualmente substituídos pelos novos acima.
@@ -365,7 +365,7 @@ function normalize<T extends BaseRecord>(id: string, d: any): T {
 }
 
 export function createStore<T extends BaseRecord>(name: string): Store<T> {
-  const LS_KEY = `nexus_${name}`;
+  const LS_KEY = `vnmax_${name}`;
   let localMode = !isFirebaseConfigured;
 
   const readLocal = (): T[] => {
@@ -377,7 +377,7 @@ export function createStore<T extends BaseRecord>(name: string): Store<T> {
   };
   const writeLocal = (items: T[]) => {
     localStorage.setItem(LS_KEY, JSON.stringify(items));
-    window.dispatchEvent(new Event(`nexus_${name}_changed`));
+    window.dispatchEvent(new Event(`vnmax_${name}_changed`));
   };
   const uid = () =>
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -391,10 +391,10 @@ export function createStore<T extends BaseRecord>(name: string): Store<T> {
         const emit = () => cb(readLocal());
         emit();
         const h = () => emit();
-        window.addEventListener(`nexus_${name}_changed`, h);
+        window.addEventListener(`vnmax_${name}_changed`, h);
         window.addEventListener('storage', h);
         cleanup = () => {
-          window.removeEventListener(`nexus_${name}_changed`, h);
+          window.removeEventListener(`vnmax_${name}_changed`, h);
           window.removeEventListener('storage', h);
         };
       };

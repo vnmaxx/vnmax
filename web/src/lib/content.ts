@@ -52,8 +52,8 @@ export type ResolvedSite = {
   final: { title: string; ctaLabel: string; contactEmail: string };
 };
 
-const LS_KEY = 'nexus_site_content';
-const EVENT = 'nexus_content_changed';
+const LS_KEY = 'vnmax_site_content';
+const EVENT = 'vnmax_content_changed';
 
 let overrides: ContentOverrides = readLocal();
 
