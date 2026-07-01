@@ -35,21 +35,28 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/allowlist/$(request.auth.uid));
     }
 
-    // --- Validação do lead público: shape fechado + tamanhos ---
+    // --- Validação do lead público (schema unificado): shape fechado + tamanhos ---
+    // Gravado direto pelo formulário público da landing (sem backend). Trava o
+    // formato para limitar abuso: só as chaves esperadas, stage/origem fixos,
+    // createdAt = timestamp do servidor, e ao menos um contato (email OU whatsapp).
     function validNewLead() {
       let d = request.resource.data;
       return
-        d.keys().hasOnly(['name','company','email','phone','segment','revenue','message','source','status','notes','createdAt']) &&
-        d.name is string && d.name.size() > 0 && d.name.size() < 200 &&
-        d.email is string && d.email.size() > 0 && d.email.size() < 200 &&
-        d.status == 'novo' &&
-        d.source is string && d.source.size() < 60 &&
-        (!('company' in d) || (d.company is string && d.company.size() < 200)) &&
-        (!('phone' in d) || (d.phone is string && d.phone.size() < 60)) &&
-        (!('segment' in d) || (d.segment is string && d.segment.size() < 120)) &&
-        (!('revenue' in d) || (d.revenue is string && d.revenue.size() < 120)) &&
-        (!('message' in d) || (d.message is string && d.message.size() < 5000)) &&
-        (!('notes' in d) || (d.notes is string && d.notes.size() < 5000));
+        d.keys().hasOnly(['nome','email','whatsapp','empresa','segmento','mensagem','canal','origem','stage','createdAt']) &&
+        d.nome is string && d.nome.size() > 0 && d.nome.size() < 200 &&
+        d.origem == 'form' &&
+        d.stage == 'NOVO' &&
+        d.createdAt == request.time &&
+        (
+          ('email' in d && d.email is string && d.email.size() > 0 && d.email.size() < 200) ||
+          ('whatsapp' in d && d.whatsapp is string && d.whatsapp.size() > 0 && d.whatsapp.size() < 60)
+        ) &&
+        (!('email' in d) || (d.email is string && d.email.size() < 200)) &&
+        (!('whatsapp' in d) || (d.whatsapp is string && d.whatsapp.size() < 60)) &&
+        (!('empresa' in d) || (d.empresa is string && d.empresa.size() < 200)) &&
+        (!('segmento' in d) || (d.segmento is string && d.segmento.size() < 160)) &&
+        (!('mensagem' in d) || (d.mensagem is string && d.mensagem.size() < 5000)) &&
+        (!('canal' in d) || (d.canal in ['email','whatsapp','instagram']));
     }
 
     // ============================================================
@@ -68,11 +75,12 @@ service cloud.firestore {
       allow write: if false;          // somente Admin SDK (seed)
     }
 
-    // Leads do CRM (vindos do formulario de contato e do chat de IA).
-    // Criacao somente via Admin SDK (servidor). Membros leem e gerenciam o funil.
+    // Leads do CRM. Criacao PUBLICA pela landing (formulario), validada por
+    // validNewLead() (shape fechado, stage/origem fixos, timestamp do servidor).
+    // Membros (isMember) leem e gerenciam o funil; visitante deslogado só cria.
     match /leads/{id} {
       allow read, update, delete: if isMember();
-      allow create: if false;
+      allow create: if validNewLead();
     }
 
     // Postagens sociais (aba Social): rascunho/aprovacao/publicacao. Escrita SOMENTE
