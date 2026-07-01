@@ -53,6 +53,15 @@ function applyGroupOpacity(group: THREE.Object3D | null, opacityFactor: number, 
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((m: any) => {
         if (!m) return;
+        // materiais marcados keepOpaque NUNCA fazem fade → sempre 100% opacos
+        // (corpo dos painéis de vidro da galeria). Só a visibilidade do grupo
+        // (opacityFactor<=0 acima) os liga/desliga. Sem isto o fade forçava
+        // transparent=true e opacidade<1, deixando os painéis "vazados".
+        if (m.userData && m.userData.keepOpaque) {
+          m.transparent = false;
+          m.opacity = 1;
+          return;
+        }
         // shaders procedurais (planetas/terra/lua/sol) respeitam uOpacity:
         // fade real no fragmento, sem depender de material.opacity.
         const uo = m.uniforms?.uOpacity;
