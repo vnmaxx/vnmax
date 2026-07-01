@@ -2,6 +2,7 @@ import { useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { UseCopilotReturn } from '../../../hooks/useCopilot';
 import type { DocumentFile } from '../../../types/copilot';
+import { Icon } from '../Icons';
 
 const ALLOWED_TYPES = [
   'application/pdf',
@@ -103,7 +104,9 @@ export function DocumentMode({ copilot }: { copilot: UseCopilotReturn }) {
           onChange={handleFileSelect}
           className="hidden"
         />
-        <p className="text-2xl mb-2">📄</p>
+        <div className="flex justify-center mb-2">
+          <Icon name="upload" className="h-6 w-6 text-white/60" />
+        </div>
         <p className="font-mono text-xs text-white/60">
           Clique ou arraste arquivos aqui
         </p>
@@ -114,16 +117,17 @@ export function DocumentMode({ copilot }: { copilot: UseCopilotReturn }) {
 
       {/* File list */}
       {state.context.documents.length > 0 && (
-        <div className="max-h-[120px] overflow-y-auto px-4 pb-2">
+        <div className="px-4 pb-2">
           {state.context.documents.map((doc) => (
             <div
               key={doc.id}
               className="mb-2 flex items-center gap-3 rounded-lg p-2"
               style={{ background: 'rgba(255, 255, 255, 0.03)' }}
             >
-              <span className="text-lg">
-                {doc.type.includes('image') ? '🖼️' : '📄'}
-              </span>
+              <Icon
+                name={doc.type.includes('image') ? 'image' : 'file'}
+                className="h-4 w-4 shrink-0 text-white/60"
+              />
               
               <div className="flex-1 min-w-0">
                 <p className="truncate font-mono text-xs text-white/80">
@@ -174,13 +178,14 @@ export function DocumentMode({ copilot }: { copilot: UseCopilotReturn }) {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleAnalyze}
-            className="w-full rounded-lg py-2 font-mono text-xs font-medium transition-all"
+            className="w-full rounded-lg py-2 font-mono text-xs font-medium transition-all flex items-center justify-center gap-2"
             style={{
               background: 'linear-gradient(135deg, rgba(65, 232, 255, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)',
               border: '1px solid rgba(65, 232, 255, 0.4)',
             }}
           >
-            Analisar com IA 🧠
+            <Icon name="brain" className="h-4 w-4" />
+            <span>Analisar com IA</span>
           </motion.button>
         </div>
       )}

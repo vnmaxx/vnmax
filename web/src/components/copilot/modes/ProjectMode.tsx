@@ -185,7 +185,7 @@ export function ProjectMode({ copilot }: { copilot: UseCopilotReturn }) {
       </div>
 
       {/* Form */}
-      <div className="max-h-[200px] overflow-y-auto p-4">
+      <div className="p-4">
         {renderStep()}
       </div>
 

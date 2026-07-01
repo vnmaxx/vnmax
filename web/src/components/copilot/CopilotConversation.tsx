@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { UseCopilotReturn } from '../../hooks/useCopilot';
 import { TypingIndicator } from './TypingIndicator';
+import { Icon } from './Icons';
 
 function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString('pt-BR', {
@@ -57,7 +58,7 @@ export function CopilotConversation({ copilot }: { copilot: UseCopilotReturn }) 
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-4 crm-scroll"
+      className="p-4"
       style={{ scrollbarWidth: 'thin' }}
     >
       {state.messages.length === 0 ? (
@@ -110,14 +111,14 @@ export function CopilotConversation({ copilot }: { copilot: UseCopilotReturn }) 
 
 function EmptyState() {
   return (
-    <div className="flex h-full flex-col items-center justify-center text-center">
+    <div className="flex min-h-[240px] flex-col items-center justify-center text-center">
       <div
         className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
         style={{
           background: 'linear-gradient(135deg, rgba(65, 232, 255, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
         }}
       >
-        <span className="text-3xl">🤖</span>
+        <Icon name="sparkles" className="h-8 w-8 text-white/80" />
       </div>
       <h3 className="mb-2 font-mono text-sm font-medium text-white/80">
         Bem-vindo ao VNMAX AI
