@@ -1,8 +1,11 @@
 // Proxy serverless (Vercel) — CRM -> Studio-IA Backend.
 // A chave fica SO no servidor (env), nunca no frontend.
 //
-// Modo novo (direto no Studio-IA):
-//   STUDIO_BRIDGE_URL  = https://studio-ia-api.onrender.com (ou http://localhost:3002 em dev)
+// STUDIO_BRIDGE_URL aponta para o servico do Studio-IA no Render
+// (studio-ia-api.onrender.com), que reexpoe as rotas do bridge sob o prefixo
+// /api/*. Chamamos o Render (nao o bridge Cloudflare direto) porque o tunel
+// Cloudflare do bridge desafia IPs de datacenter (Vercel) com anti-bot.
+//   STUDIO_BRIDGE_URL    = https://studio-ia-api.onrender.com
 //   STUDIO_BRIDGE_SECRET = <BRIDGE_SECRET>   (chave compartilhada)
 //
 // SEGURANCA: a allowlist valida o PATH INTEIRO (nao so o 1o segmento),
@@ -62,7 +65,9 @@ export default async function handler(req, res) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 20000);
   try {
-    const base = `${URL.replace(/\/+$/, "")}/${raw}`;
+    // O Render expoe as rotas sob /api/*; "health" mapeia para "status".
+    const routePath = raw === "health" ? "status" : raw;
+    const base = `${URL.replace(/\/+$/, "")}/api/${routePath}`;
     const target = base + (qs ? `?${qs}` : "");
     const headers = {
       "x-bridge-secret": SECRET,
