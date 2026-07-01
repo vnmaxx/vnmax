@@ -96,14 +96,14 @@ export function GlassPanel({
             tudo atrás. NUNCA transparente. (Objetos de fundo com depthTest:false —
             buraco negro — foram corrigidos para respeitar profundidade.) */}
         <RoundedBox args={[w, h, 0.09]} radius={0.1} smoothness={4}>
-          <meshBasicMaterial color="#0f1e42" toneMapped={false} transparent={false} depthWrite depthTest />
+          <meshBasicMaterial color="#0f1e42" toneMapped={false} transparent={false} depthWrite depthTest userData={{ keepOpaque: true }} />
         </RoundedBox>
 
         {/* reforço frontal opaco por trás do texto (superfície plana e cheia à frente
             da caixa, mesmo nos cantos arredondados). Também 100% opaco. */}
         <mesh position={[0, 0, 0.048]}>
           <planeGeometry args={[w - 0.06, h - 0.06]} />
-          <meshBasicMaterial color="#0f1e42" toneMapped={false} transparent={false} depthWrite depthTest />
+          <meshBasicMaterial color="#0f1e42" toneMapped={false} transparent={false} depthWrite depthTest userData={{ keepOpaque: true }} />
         </mesh>
 
         {/* faixa de cabeçalho luminosa (recuada das bordas) */}
