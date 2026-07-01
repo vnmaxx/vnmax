@@ -11,7 +11,7 @@ import { earthMarkers, latLonToVec3 } from '../data/earthMarkers';
 /*  · normal map → relevo de montanhas no terminador                  */
 /*  · camada de nuvens animada + halo de atmosfera (fresnel)          */
 /* Marcadores fixados sobre os CONTINENTES REAIS ligam cada região    */
-/* ao conteúdo real da Nexus (ver src/data/earthMarkers.ts).          */
+/* ao conteúdo real da VNMAX (ver src/data/earthMarkers.ts).          */
 /* ------------------------------------------------------------------ */
 
 interface Props {

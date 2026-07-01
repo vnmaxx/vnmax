@@ -10,7 +10,7 @@ import {
   type ProjetoStatus,
 } from '../../lib/crm';
 // NOTA: As funções listEntregaveis/entregaRawUrl/entregaDocHtmlUrl/entregaBundleUrl
-// foram removidas. O Sistema antigo (Nexus Digital 90) suportava downloads de arquivos
+// foram removidas. O Sistema antigo (VNMAX Digital 90) suportava downloads de arquivos
 // em pastas. O Studio-IA (novo sistema) expõe produtos via getStudioProdutos() mas
 // sem a mesma estrutura de pastas. A aba "Entregáveis" abaixo será adaptada por outro
 // agente para usar o novo schema do Studio-IA, ou removida se não for mais necessária.
@@ -252,7 +252,7 @@ function HistoricoTab({ cliente }: { cliente: Cliente }) {
 /**
  * TODO: EntregaveisTab desabilitada — aguardando integração com Studio-IA.
  *
- * No sistema antigo (Nexus Digital 90), os materiais eram estruturados em pastas
+ * No sistema antigo (VNMAX Digital 90), os materiais eram estruturados em pastas
  * e arquivos, com URLs de download via API proxy. O Studio-IA (novo sistema) expõe
  * conteúdos via getStudioProdutos(clienteId), mas sem a mesma estrutura de pastas.
  *

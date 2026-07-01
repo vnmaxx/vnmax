@@ -1,4 +1,4 @@
-// Tipos do Nexus AI Copilot
+// Tipos do VNMAX AI Copilot
 
 export type CopilotMode = 'chat' | 'project' | 'meeting' | 'document' | 'ceo';
 

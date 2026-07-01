@@ -84,7 +84,7 @@ export async function adminSignIn(
     remember ? browserLocalPersistence : browserSessionPersistence,
   );
   if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('nexus_keep', remember ? '1' : '0');
+    localStorage.setItem('vnmax_keep', remember ? '1' : '0');
   }
   const credential = await signInWithEmailAndPassword(
     getFirebaseAuth(),
@@ -189,7 +189,7 @@ export async function changePassword(
 /** Liga/desliga "manter conectado" neste dispositivo (vale a partir do próximo login/carregamento). */
 export async function setKeepLogged(remember: boolean): Promise<void> {
   if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('nexus_keep', remember ? '1' : '0');
+    localStorage.setItem('vnmax_keep', remember ? '1' : '0');
   }
   if (isFirebaseConfigured) {
     await setPersistence(
@@ -202,5 +202,5 @@ export async function setKeepLogged(remember: boolean): Promise<void> {
 /** Lê a preferência "manter conectado" (padrão: ligado). */
 export function isKeepLogged(): boolean {
   if (typeof localStorage === 'undefined') return true;
-  return localStorage.getItem('nexus_keep') !== '0';
+  return localStorage.getItem('vnmax_keep') !== '0';
 }

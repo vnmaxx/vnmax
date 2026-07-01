@@ -1,6 +1,6 @@
 /**
  * ============================================================
- *  Ponte segura: CRM Nexus Holding  ->  Studio-IA Backend
+ *  Ponte segura: CRM VNMAX  ->  Studio-IA Backend
  * ============================================================
  *  Conecta o CRM (postflow) ao sistema Studio-IA via API
  *  protegida por secret de bridge.
@@ -131,7 +131,7 @@ export async function getStudioPendentes(clienteId: string): Promise<StudioPende
  * NOTA: Os URLs de download de materiais (entregaRawUrl, entregaDocHtmlUrl,
  * entregaBundleUrl) NÃO têm equivalente direto no Studio-IA no schema atual.
  * O Studio-IA armazena conteúdo em getStudioProdutos() mas não expõe estrutura
- * de pastas/arquivos como o sistema antigo (Nexus Digital 90).
+ * de pastas/arquivos como o sistema antigo (VNMAX Digital 90).
  *
  * Se no futuro for necessário, pode-se:
  * 1) Usar o campo `conteudo` do produto (que é a string renderizável)

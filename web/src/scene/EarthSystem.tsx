@@ -189,7 +189,7 @@ function Moon({ radius, sunPosition, quality }: { radius: number; sunPosition: [
 /* ------------------------------------------------------------------ */
 /* EASTER EGG: se o usuário ficar 30s com a TELA PARADA observando a    */
 /* Terra e a Lua (sem rolar e sem mover o mouse), um foguete desce e    */
-/* pousa na Lua — com chama de motor, poeira no toque e bandeira NEXUS. */
+/* pousa na Lua — com chama de motor, poeira no toque e bandeira VNMAX. */
 /* ------------------------------------------------------------------ */
 function MoonRocket({ moonRadius, accent = '#41e8ff' }: { moonRadius: number; accent?: string }) {
   const rocket = useRef<THREE.Group>(null);
@@ -336,7 +336,7 @@ function MoonRocket({ moonRadius, accent = '#41e8ff' }: { moonRadius: number; ac
         <meshBasicMaterial color="#cfd6dd" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
 
-      {/* bandeira NEXUS fincada */}
+      {/* bandeira VNMAX fincada */}
       <group ref={flag} position={[0.34, moonRadius + 0.05, 0.05]} visible={false}>
         <mesh position={[0, 0.16, 0]}>
           <cylinderGeometry args={[0.012, 0.012, 0.34, 6]} />

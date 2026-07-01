@@ -41,7 +41,7 @@ export interface AppNotification {
 }
 
 const SEV_RANK: Record<Severity, number> = { urgent: 0, warn: 1, info: 2 };
-const READ_KEY = 'nexus_notif_read';
+const READ_KEY = 'vnmax_notif_read';
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const addDaysISO = (iso: string, d: number) => {
   const dt = new Date(iso + 'T00:00:00');

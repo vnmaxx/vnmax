@@ -1,6 +1,6 @@
 /**
  * Marcadores fixados sobre os CONTINENTES REAIS da Terra.
- * Cada ponto liga uma região geográfica a um conteúdo real da Nexus Holding.
+ * Cada ponto liga uma região geográfica a um conteúdo real da VNMAX.
  * lat/lon em graus (WGS84 aproximado da região-âncora).
  */
 import { ACCENTS } from './galleryContent';
@@ -22,7 +22,7 @@ export const earthMarkers: EarthMarker[] = [
   {
     id: 'hq',
     region: 'América do Sul · Brasil',
-    title: 'Programa Nexus Digital 90',
+    title: 'Programa VNMAX Digital 90',
     caption: 'Atrair · Operar · Evoluir — base de operações',
     lat: -23.55,
     lon: -46.63, // São Paulo
