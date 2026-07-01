@@ -23,7 +23,7 @@ export function FloatingButton({ copilot }: FloatingButtonProps) {
           ? '0 0 30px rgba(65, 232, 255, 0.4), 0 0 60px rgba(65, 232, 255, 0.2), inset 0 0 20px rgba(65, 232, 255, 0.1)'
           : '0 0 20px rgba(65, 232, 255, 0.2), 0 0 40px rgba(65, 232, 255, 0.1)',
       }}
-      aria-label={state.isOpen ? 'Fechar Nexus AI Copilot' : 'Abrir Nexus AI Copilot'}
+      aria-label={state.isOpen ? 'Fechar VNMAX AI Copilot' : 'Abrir VNMAX AI Copilot'}
       aria-expanded={state.isOpen}
     >
       {/* Ícone de AI */}
@@ -32,7 +32,7 @@ export function FloatingButton({ copilot }: FloatingButtonProps) {
         height="28"
         viewBox="0 0 24 24"
         fill="none"
-        stroke="url(#nexusGradient)"
+        stroke="url(#vnmaxGradient)"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -40,7 +40,7 @@ export function FloatingButton({ copilot }: FloatingButtonProps) {
         transition={{ duration: 0.3 }}
       >
         <defs>
-          <linearGradient id="nexusGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id="vnmaxGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#41e8ff" />
             <stop offset="100%" stopColor="#8b5cf6" />
           </linearGradient>

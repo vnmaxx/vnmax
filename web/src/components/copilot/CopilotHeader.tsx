@@ -49,7 +49,7 @@ export function CopilotHeader({ copilot }: { copilot: UseCopilotReturn }) {
         </div>
 
         <div>
-          <h2 className="font-mono text-sm font-medium text-white/90">Nexus AI</h2>
+          <h2 className="font-mono text-sm font-medium text-white/90">VNMAX AI</h2>
           <p className="font-mono text-[10px] text-white/40">{modeLabels[state.mode]}</p>
         </div>
       </div>

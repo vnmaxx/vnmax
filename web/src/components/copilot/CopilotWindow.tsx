@@ -62,7 +62,7 @@ export function CopilotWindow({ copilot }: CopilotWindowProps) {
           boxShadow: '0 0 40px rgba(65, 232, 255, 0.1), 0 25px 80px rgba(0, 0, 0, 0.6)',
         }}
         role="dialog"
-        aria-label="Nexus AI Copilot"
+        aria-label="VNMAX AI Copilot"
       >
         <CopilotHeader copilot={copilot} />
         <div className="flex flex-1 overflow-hidden">

@@ -2,12 +2,12 @@ import type { UseCopilotReturn } from '../../../hooks/useCopilot';
 
 export function ChatMode({ copilot }: { copilot: UseCopilotReturn }) {
   const quickActions = [
-    { icon: '🏢', label: 'Sobre a Nexus', prompt: 'Conte-me sobre a Nexus Holding' },
-    { icon: '🤖', label: 'Serviços de IA', prompt: 'Quais serviços de IA a Nexus oferece?' },
-    { icon: '🔧', label: 'Automação', prompt: 'Como a Nexus pode ajudar com automação?' },
+    { icon: '🏢', label: 'Sobre a VNMAX', prompt: 'Conte-me sobre a VNMAX' },
+    { icon: '🤖', label: 'Serviços de IA', prompt: 'Quais serviços de IA a VNMAX oferece?' },
+    { icon: '🔧', label: 'Automação', prompt: 'Como a VNMAX pode ajudar com automação?' },
     { icon: '💰', label: 'Orçamento', prompt: 'Como funciona o orçamento de projetos?' },
     { icon: '📞', label: 'Contato', prompt: 'Como posso entrar em contato?' },
-    { icon: '🌟', label: 'Diferenciais', prompt: 'Quais são os diferenciais da Nexus?' },
+    { icon: '🌟', label: 'Diferenciais', prompt: 'Quais são os diferenciais da VNMAX?' },
   ];
 
   const handleQuickAction = (prompt: string) => {
