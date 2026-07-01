@@ -1,6 +1,6 @@
-import { Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Lightformer, Preload } from '@react-three/drei';
+import { Environment, Lightformer, Preload, PerformanceMonitor } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { bindPointer, scrollState } from '../lib/scrollState';
@@ -112,7 +112,9 @@ function RevealOnScroll({ children }: { children: ReactNode }) {
     // da tela (warpBlink segura opaco em p=0.20→0.235, ver Overlay).
     // Concluído em 0.23 → quando o branco some, já estão prontos. Nunca
     // são vistos "spawnando".
-    const t = smoother((p - 0.2) / (0.23 - 0.2));
+    // completa em 0.22 (antes do branco lift em 0.245) → folga p/ os planetas
+    // ficarem 100% materializados sob o branco, sem serem vistos "aparecendo".
+    const t = smoother((p - 0.2) / (0.22 - 0.2));
     applyGroupOpacity(ref.current, t, originals.current);
   });
   return <group ref={ref}>{children}</group>;
@@ -186,11 +188,11 @@ function SceneContent() {
 
       {/* GALÁXIA (Via Láctea) — visível no topo (p=0), desaparece durante a viagem na luz (p=0→0.24). */}
       <VisibleRange start={0.36} end={0}>
-        <Galaxy count={profile.isMobile ? 3600 : 11000} position={[0, 2.5, -95]} rotation={[1.15, 0.05, 0.32]} radius={82} />
+        <Galaxy count={profile.isMobile || profile.lowPower ? 3600 : 11000} position={[0, 2.5, -95]} rotation={[1.15, 0.05, 0.32]} radius={82} />
       </VisibleRange>
 
       {/* campo de estrelas distante envolvendo toda a jornada */}
-      <Starfield count={profile.isMobile ? 900 : 2400} />
+      <Starfield count={profile.isMobile || profile.lowPower ? 900 : 2400} />
 
       {/* efeito de viagem na luz, p=0.02→0.26.
           Dispositivos fracos: menos partículas e flash branco mais suave —
@@ -233,7 +235,7 @@ function SceneContent() {
         </FadeByDistance>
 
         {/* asteroides + meteoros por TODA a jornada (não atrelados ao Sol) */}
-        <Asteroids count={profile.isMobile ? 70 : 200} />
+        <Asteroids count={profile.isMobile || profile.lowPower ? 70 : 200} />
         <Comets comets={profile.isMobile ? 1 : 3} meteors={profile.isMobile ? 4 : 11} />
 
         {/* gigante gasoso azul + planeta rochoso + gigante com anéis */}
@@ -275,12 +277,16 @@ function SceneContent() {
  */
 export default function ExperienceCanvas() {
   const profile = useDeviceProfile();
+  // bloom e teto de DPR viram estado: o PerformanceMonitor os derruba se o
+  // FPS cair (rede de segurança p/ hardware que passe pela detecção estática).
+  const [effectsOn, setEffectsOn] = useState(profile.effects);
+  const [dprMax, setDprMax] = useState(profile.dpr[1]);
   useEffect(() => bindPointer(), []);
 
   return (
     <div className="fixed inset-0 z-0" aria-hidden>
       <Canvas
-        dpr={profile.dpr}
+        dpr={[profile.dpr[0], dprMax]}
         gl={{ antialias: !profile.isMobile && !profile.lowPower, powerPreference: 'high-performance', alpha: false }}
         // retrato tem FOV horizontal estreito → abre o FOV vertical no mobile
         // para que os totens verticais caibam inteiros na tela.
@@ -288,6 +294,20 @@ export default function ExperienceCanvas() {
       >
         <color attach="background" args={['#01020a']} />
         <fog attach="fog" args={['#03040d', 30, 140]} />
+        {/* Rede de segurança adaptativa: se o FPS médio cair, desliga o bloom
+            e reduz a resolução → a cena para de travar sozinha em GPUs fracas,
+            enquanto máquinas com folga mantêm tudo. */}
+        <PerformanceMonitor
+          flipflops={2}
+          onDecline={() => {
+            setEffectsOn(false);
+            setDprMax(1);
+          }}
+          onFallback={() => {
+            setEffectsOn(false);
+            setDprMax(1);
+          }}
+        />
         <Suspense fallback={null}>
           <SceneContent />
           {/* Pré-compila TODOS os shaders/texturas no load (atrás da tela de
@@ -295,7 +315,7 @@ export default function ExperienceCanvas() {
               do brilho compilava tudo de uma vez e TRAVAVA. */}
           <Preload all />
         </Suspense>
-        {profile.effects && (
+        {effectsOn && (
           <EffectComposer enableNormalPass={false} multisampling={0}>
             <Bloom
               intensity={profile.isMobile ? 0.32 : 0.5}
