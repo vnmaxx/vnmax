@@ -1,27 +1,13 @@
 rules_version = '2';
 
 // ============================================================
-//  Regras do Firestore — RASCUNHO MESCLADO
+//  Regras do Firestore — VNMAX (projeto vnmax-6a660)
 // ============================================================
+//  Modelo unico: acesso interno via isMember() (autenticado + doc em
+//  /allowlist/{uid}). Leads podem ser criados publicamente pela landing,
+//  validados por validNewLead(). O restante e deny-by-default.
 //
-//  ⚠️ FUSÃO EM PROGRESSO
-//  Este arquivo é um RASCUNHO da fusão de duas bases de regras:
-//    - d:\vnmax\firestore.rules (base — deny-by-default, allowlist + isMember)
-//    - d:\Nexus Holding\firestore.rules (atual — isAdmin baseado em claims/docs/email)
-//
-//  TODAS as colecões agora usam isMember() como mecanismo unificado de autenticação/
-//  autorização. O antigo sistema isAdmin() foi removido.
-//
-//  ⚠️ INSTRUÇÕES DE DEPLOY (manual, após revisão humana):
-//    1. Revise este arquivo cuidadosamente antes de deploy.
-//    2. Certifique-se de que todos os UIDs necessários estão em /allowlist/{uid}
-//       no projeto vnmax-6a660 (Firestore).
-//    3. Publique MANUALMENTE via Firebase CLI:
-//         firebase deploy --only firestore:rules
-//       (Firebase project: vnmax-6a660)
-//    4. NÃO execute deploy automaticamente — é uma mudança de produção que
-//       requer checagem manual de acesso.
-//
+//  Deploy: firebase deploy --only firestore:rules --project vnmax-6a660
 // ============================================================
 
 service cloud.firestore {
@@ -29,16 +15,12 @@ service cloud.firestore {
 
     // --- Função de autorização unificada ---
     // Membro é quem está autenticado E existe em /allowlist/{uid}.
-    // A allowlist é gerenciada apenas pelo console ou Admin SDK.
     function isMember() {
       return request.auth != null
         && exists(/databases/$(database)/documents/allowlist/$(request.auth.uid));
     }
 
     // --- Validação do lead público (schema unificado): shape fechado + tamanhos ---
-    // Gravado direto pelo formulário público da landing (sem backend). Trava o
-    // formato para limitar abuso: só as chaves esperadas, stage/origem fixos,
-    // createdAt = timestamp do servidor, e ao menos um contato (email OU whatsapp).
     function validNewLead() {
       let d = request.resource.data;
       return
@@ -59,9 +41,7 @@ service cloud.firestore {
         (!('canal' in d) || (d.canal in ['email','whatsapp','instagram']));
     }
 
-    // ============================================================
-    // COLECÕES DO VNMAX (mantidas exatamente como estão)
-    // ============================================================
+    // ===================== COLEÇÕES DO PORTAL (vnmax) =====================
 
     // Conteúdo interno reservado (portal: divisões, roadmap, produtos).
     match /internal/{doc} {
@@ -75,35 +55,31 @@ service cloud.firestore {
       allow write: if false;          // somente Admin SDK (seed)
     }
 
-    // Leads do CRM. Criacao PUBLICA pela landing (formulario), validada por
-    // validNewLead() (shape fechado, stage/origem fixos, timestamp do servidor).
-    // Membros (isMember) leem e gerenciam o funil; visitante deslogado só cria.
+    // Leads do CRM. Criação PÚBLICA pela landing (formulário), validada por
+    // validNewLead(). Membros (isMember) leem e gerenciam o funil.
     match /leads/{id} {
       allow read, update, delete: if isMember();
       allow create: if validNewLead();
     }
 
-    // Postagens sociais (aba Social): rascunho/aprovacao/publicacao. Escrita SOMENTE
-    // pelo servidor (Admin SDK), que verifica o ID token. Membros apenas leem.
+    // Postagens sociais: escrita só pelo servidor (Admin SDK). Membros leem.
     match /social_posts/{id} {
       allow read: if isMember();
       allow write: if false;
     }
 
-    // Jobs de edicao de video (aba Vídeo). Escrita so pelo servidor/worker (Admin SDK).
+    // Jobs de edição de vídeo. Escrita só pelo servidor/worker (Admin SDK).
     match /video_jobs/{id} {
       allow read: if isMember();
       allow write: if false;
     }
 
-    // Contas conectadas das redes (aba Social → Contas). Guardam TOKENS de acesso,
-    // entao NUNCA sao lidas pelo client: todo acesso passa pelo servidor (Admin SDK),
-    // que remove os segredos antes de responder. Negado a leitura/escrita pelo client.
+    // Contas conectadas das redes (guardam TOKENS): nunca lidas pelo client.
     match /social_connections/{id} {
       allow read, write: if false;
     }
 
-    // Estados temporarios do fluxo OAuth (code_verifier/state). Somente Admin SDK.
+    // Estados temporários do fluxo OAuth. Somente Admin SDK.
     match /social_oauth_states/{id} {
       allow read, write: if false;
     }
@@ -113,58 +89,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ============================================================
-    // COLECÕES DO NEXUS HOLDING (adaptadas para isMember())
-    // ============================================================
+    // ===================== COLEÇÕES DO CRM (ex-Nexus Holding) =====================
 
-    // Clientes CRM
-    match /clientes/{clienteId} {
-      allow read, write: if isMember();
-    }
+    match /clientes/{clienteId}   { allow read, write: if isMember(); }
+    match /propostas/{propostaId} { allow read, write: if isMember(); }
+    match /tarefas/{tarefaId}     { allow read, write: if isMember(); }
+    match /campanhas/{campanhaId} { allow read, write: if isMember(); }
+    match /content/{contentId}    { allow read, write: if isMember(); }
+    match /usuarios/{usuarioId}   { allow read, write: if isMember(); }
+    match /historico/{entradaId}  { allow read, write: if isMember(); }
+    match /eventos/{eventoId}     { allow read, write: if isMember(); }
+    match /parcelas/{parcelaId}   { allow read, write: if isMember(); }
 
-    // Propostas/Orçamentos
-    match /propostas/{propostaId} {
-      allow read, write: if isMember();
-    }
-
-    // Tarefas/To-do
-    match /tarefas/{tarefaId} {
-      allow read, write: if isMember();
-    }
-
-    // Campanhas de marketing
-    match /campanhas/{campanhaId} {
-      allow read, write: if isMember();
-    }
-
-    // Conteúdo/assets
-    match /content/{contentId} {
-      allow read, write: if isMember();
-    }
-
-    // Usuários/membros da equipe
-    match /usuarios/{usuarioId} {
-      allow read, write: if isMember();
-    }
-
-    // Histórico de ações (auditoria)
-    match /historico/{entradaId} {
-      allow read, write: if isMember();
-    }
-
-    // Eventos/logs
-    match /eventos/{eventoId} {
-      allow read, write: if isMember();
-    }
-
-    // Parcelas/Financeiro
-    match /parcelas/{parcelaId} {
-      allow read, write: if isMember();
-    }
-
-    // ============================================================
-    // DENY-BY-DEFAULT
-    // ============================================================
+    // ===================== DENY-BY-DEFAULT =====================
     // Tudo o mais é negado por padrão.
     match /{document=**} {
       allow read, write: if false;
