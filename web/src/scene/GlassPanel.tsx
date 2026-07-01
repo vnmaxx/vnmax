@@ -18,6 +18,9 @@ const TEXT_MATERIAL = new THREE.MeshBasicMaterial({
   toneMapped: false,
   transparent: true,
 });
+// keepBright: o texto nunca é escurecido pelo fade da cena (fica sempre em
+// opacidade cheia). transparent continua true → bordas de glifo suaves.
+TEXT_MATERIAL.userData = { keepBright: true };
 
 interface GlassPanelProps {
   position: [number, number, number];
@@ -126,11 +129,11 @@ export function GlassPanel({
                 {`— ${index} —`}
               </Text>
             )}
-            <Text font={FONT_DISPLAY} position={[0, h * 0.16, 0.06]} fontSize={titleSize} maxWidth={innerW} color="#ffffff" anchorX="center" anchorY="middle" textAlign="center" letterSpacing={0.02} lineHeight={0.96} outlineWidth={0.004} outlineColor="#0a1430" outlineOpacity={0.6}>
+            <Text font={FONT_DISPLAY} material={TEXT_MATERIAL} userData={{ keepBright: true }} position={[0, h * 0.16, 0.06]} fontSize={titleSize} maxWidth={innerW} color="#ffffff" anchorX="center" anchorY="middle" textAlign="center" letterSpacing={0.02} lineHeight={0.96} outlineWidth={0.006} outlineColor="#04060f" outlineOpacity={0.9}>
               {title}
             </Text>
             {tag && (
-              <Text font={FONT_MONO} material={TEXT_MATERIAL} position={[0, -0.16, 0.06]} fontSize={0.105} maxWidth={innerW} color={accent} anchorX="center" anchorY="middle" textAlign="center" letterSpacing={0.16} outlineWidth={0.005} outlineColor="#020512" outlineOpacity={0.85}>
+              <Text font={FONT_MONO} material={TEXT_MATERIAL} userData={{ keepBright: true }} position={[0, -0.16, 0.06]} fontSize={0.105} maxWidth={innerW} color={accent} anchorX="center" anchorY="middle" textAlign="center" letterSpacing={0.16} outlineWidth={0.005} outlineColor="#020512" outlineOpacity={0.85}>
                 {tag.toUpperCase()}
               </Text>
             )}
@@ -139,7 +142,7 @@ export function GlassPanel({
               <meshBasicMaterial color={accent} toneMapped={false} />
             </mesh>
             {body && (
-              <Text font={FONT_BODY} material={TEXT_MATERIAL} position={[0, -0.56, 0.06]} fontSize={0.1} maxWidth={innerW - 0.3} color="#f4f8ff" anchorX="center" anchorY="top" textAlign="center" lineHeight={1.45} outlineWidth={0.005} outlineColor="#020512" outlineOpacity={0.8}>
+              <Text font={FONT_BODY} material={TEXT_MATERIAL} userData={{ keepBright: true }} position={[0, -0.56, 0.06]} fontSize={0.1} maxWidth={innerW - 0.3} color="#f4f8ff" anchorX="center" anchorY="top" textAlign="center" lineHeight={1.45} outlineWidth={0.005} outlineColor="#020512" outlineOpacity={0.8}>
                 {body}
               </Text>
             )}
@@ -152,11 +155,11 @@ export function GlassPanel({
                 {`/ ${index}`}
               </Text>
             )}
-            <Text font={FONT_DISPLAY} position={[left, top - 0.28, 0.06]} fontSize={titleSize} maxWidth={innerW} color="#ffffff" anchorX="left" anchorY="top" textAlign="left" letterSpacing={0.015} lineHeight={0.95} outlineWidth={0.004} outlineColor="#0a1430" outlineOpacity={0.6}>
+            <Text font={FONT_DISPLAY} material={TEXT_MATERIAL} userData={{ keepBright: true }} position={[left, top - 0.28, 0.06]} fontSize={titleSize} maxWidth={innerW} color="#ffffff" anchorX="left" anchorY="top" textAlign="left" letterSpacing={0.015} lineHeight={0.95} outlineWidth={0.006} outlineColor="#04060f" outlineOpacity={0.9}>
               {title.toUpperCase()}
             </Text>
             {tag && (
-              <Text font={FONT_MONO} material={TEXT_MATERIAL} position={[left, top - 0.28 - titleSize - 0.14, 0.06]} fontSize={0.09} color={accent} anchorX="left" anchorY="top" letterSpacing={0.18} maxWidth={innerW} lineHeight={1.2} outlineWidth={0.005} outlineColor="#020512" outlineOpacity={0.85}>
+              <Text font={FONT_MONO} material={TEXT_MATERIAL} userData={{ keepBright: true }} position={[left, top - 0.28 - titleSize - 0.14, 0.06]} fontSize={0.09} color={accent} anchorX="left" anchorY="top" letterSpacing={0.18} maxWidth={innerW} lineHeight={1.2} outlineWidth={0.005} outlineColor="#020512" outlineOpacity={0.85}>
                 {tag.toUpperCase()}
               </Text>
             )}
@@ -165,7 +168,7 @@ export function GlassPanel({
               <meshBasicMaterial color={accent} toneMapped={false} />
             </mesh>
             {body && (
-              <Text font={FONT_BODY} material={TEXT_MATERIAL} position={[left, top - 0.28 - titleSize - 0.5, 0.06]} fontSize={0.088} maxWidth={innerW} color="#f4f8ff" anchorX="left" anchorY="top" textAlign="left" lineHeight={1.42} outlineWidth={0.005} outlineColor="#020512" outlineOpacity={0.8}>
+              <Text font={FONT_BODY} material={TEXT_MATERIAL} userData={{ keepBright: true }} position={[left, top - 0.28 - titleSize - 0.5, 0.06]} fontSize={0.088} maxWidth={innerW} color="#f4f8ff" anchorX="left" anchorY="top" textAlign="left" lineHeight={1.42} outlineWidth={0.005} outlineColor="#020512" outlineOpacity={0.8}>
                 {body}
               </Text>
             )}
