@@ -222,9 +222,11 @@ export function WarpEffect({ count = COUNT_DEFAULT, maxFlash = 1.35 }: WarpEffec
       // -48 (longe, à frente) → +6 (atravessa a câmera, que está em z≈3)
       spriteRef.current.position.z = THREE.MathUtils.lerp(-48, 6, approach);
       // aumenta conforme se aproxima (além do crescimento natural por perspectiva);
-      // escala do pico acompanha maxFlash → menos área branca em GPUs fracas
-      const peak = 18 + 16 * (maxFlash / 1.35);
-      spriteRef.current.scale.setScalar(6 + approach * peak);
+      // escala do pico acompanha maxFlash → menos área branca em GPUs fracas.
+      // Reduzido: evita cobrir 100% da tela de branco (o que fazia o Bloom
+      // "explodir" sobre imagem saturada e congelar no pico de brilho).
+      const peak = 11 + 9 * (maxFlash / 1.35);
+      spriteRef.current.scale.setScalar(5 + approach * peak);
     }
     // aparece durante a aproximação e estoura ao chegar perto, sumindo ao passar
     const rise = THREE.MathUtils.smoothstep(wp, 0.12, 0.55);
