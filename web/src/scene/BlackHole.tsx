@@ -34,7 +34,7 @@ function makeLensMaterial(inner: number, outer: number, inclination: number): TH
   const material = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     fog: false,
@@ -106,7 +106,7 @@ function makeBandMaterial(radius: number, outer: number, inclination: number): T
   const material = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     fog: false,
@@ -195,7 +195,7 @@ function makeLensedStarMaterial(radius: number, extent: number): THREE.ShaderMat
   const material = new THREE.ShaderMaterial({
     transparent: false,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     blending: THREE.AdditiveBlending,
     fog: false,
     uniforms: {
@@ -271,7 +271,7 @@ function makePhotonMaterial(): THREE.ShaderMaterial {
   const material = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     fog: false,
@@ -337,7 +337,7 @@ export function BlackHole({ position = [-20, 5, -125], radius = 6, tilt = 0.42 }
       opacity: 0.72,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      depthTest: false,
+      depthTest: true,
       fog: false,
     });
     material.toneMapped = false;
