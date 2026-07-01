@@ -12,8 +12,15 @@ function formatTime(timestamp: number): string {
 }
 
 function MarkdownContent({ content }: { content: string }) {
-  // Parse simples de markdown para renderização
+  // Parse simples de markdown para renderização.
+  // SEGURANÇA: escapa &<> ANTES do markdown → nenhuma tag/JS presente no
+  // conteúdo (resposta da IA, etc.) é renderizada como HTML; só a formatação
+  // markdown gerada pelas regras abaixo vira HTML. Fecha o XSS via
+  // dangerouslySetInnerHTML. (& primeiro p/ não reescapar as entidades geradas.)
   const html = content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     // Código inline
     .replace(/`([^`]+)`/g, '<code class="bg-white/10 rounded px-1 py-0.5 font-mono text-sm text-neon-cyan">$1</code>')
     // Blocos de código
