@@ -38,10 +38,10 @@ export const galleryCards: GalleryCard[] = [
   {
     id: 'program-hero',
     index: '01',
-    title: 'Programa VNMAX Digital 90',
-    tag: 'Atrair. Operar. Evoluir.',
+    title: 'VNMAX',
+    tag: 'Tecnologia, Inteligência Artificial e Inovação',
     body:
-      'Um ciclo de aceleração de 90 dias para transformar empresas tradicionais em negócios mais encontrados, organizados e preparados para crescer.',
+      'Um ecossistema que une engenharia, estratégia e design para transformar tecnologia em vantagem real — software, IA, dados, cloud e segurança sob um único guarda-chuva de qualidade.',
     position: [-5, 0.6, -13],
     rotation: [0, 0.5, 0.02],
     size: [5.8, 3.1],
@@ -51,10 +51,10 @@ export const galleryCards: GalleryCard[] = [
   {
     id: 'atrair',
     index: '02',
-    title: 'ATRAIR',
-    tag: 'Sua empresa encontrada e procurada.',
+    title: 'ECOSSISTEMA',
+    tag: 'Todas as frentes digitais, um só parceiro.',
     body:
-      '• Google Ads e Meta Ads\n• Landing pages de conversão\n• Posicionamento digital\n• Conteúdo estratégico\n• Relatórios de captação',
+      '• Software sob medida\n• Sites e aplicativos\n• Dados e dashboards\n• Cloud e infraestrutura\n• Segurança digital',
     position: [0.6, -0.1, -19.5],
     rotation: [0, 0.05, 0],
     size: [4.8, 3.0],
@@ -63,10 +63,10 @@ export const galleryCards: GalleryCard[] = [
   {
     id: 'operar',
     index: '03',
-    title: 'OPERAR',
-    tag: 'Sua operação organizada para crescer.',
+    title: 'INTELIGÊNCIA',
+    tag: 'IA aplicada a problemas reais.',
     body:
-      '• CRM comercial\n• Gestão financeira\n• Portal do cliente\n• Gestão de orçamentos\n• Dashboards e indicadores\n• Apps internos',
+      '• Agentes e automações de IA\n• Atendimento inteligente\n• Processamento de documentos\n• Análise e decisão com dados\n• Menos trabalho manual, mais velocidade',
     position: [5.4, -0.4, -25.5],
     rotation: [0, -0.55, -0.03],
     size: [4.6, 2.7],
@@ -75,10 +75,10 @@ export const galleryCards: GalleryCard[] = [
   {
     id: 'evoluir',
     index: '04',
-    title: 'EVOLUIR',
-    tag: 'Sua equipe dona do processo.',
+    title: 'ESCALA',
+    tag: 'Construído para crescer com você.',
     body:
-      '• Treinamento da equipe\n• Relatórios mensais\n• Metas e indicadores\n• Acompanhamento estratégico\n• Melhoria contínua',
+      '• Arquitetura escalável\n• Alta disponibilidade 24/7\n• Segurança em camadas\n• Evolução contínua\n• Um único parceiro, ponta a ponta',
     position: [7.8, 0.8, -33],
     rotation: [0, -0.85, 0.04],
     size: [4.2, 2.5],

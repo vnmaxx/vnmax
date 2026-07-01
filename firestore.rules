@@ -89,7 +89,7 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ===================== COLEÇÕES DO CRM (ex-Nexus Holding) =====================
+    // ===================== COLEÇÕES DO CRM =====================
 
     match /clientes/{clienteId}   { allow read, write: if isMember(); }
     match /propostas/{propostaId} { allow read, write: if isMember(); }

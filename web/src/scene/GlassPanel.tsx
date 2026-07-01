@@ -91,18 +91,19 @@ export function GlassPanel({
           scrollSpin={0}
         />
 
-        {/* corpo do card — SÓLIDO e 100% OPACO. Usa meshBasicMaterial (não depende
-            de luz da cena, como o physical dependia — que renderizava quase preto e
-            "sumia") e escreve profundidade, ocultando tudo atrás. Cor navy cheia. */}
-        <RoundedBox args={[w, h, 0.08]} radius={0.1} smoothness={4}>
-          <meshBasicMaterial color="#0f1e42" toneMapped={false} />
+        {/* corpo do card — SÓLIDO e 100% OPACO. meshBasicMaterial (não depende de luz
+            da cena), transparent=false, depthWrite=true: escreve profundidade e oculta
+            tudo atrás. NUNCA transparente. (Objetos de fundo com depthTest:false —
+            buraco negro — foram corrigidos para respeitar profundidade.) */}
+        <RoundedBox args={[w, h, 0.09]} radius={0.1} smoothness={4}>
+          <meshBasicMaterial color="#0f1e42" toneMapped={false} transparent={false} depthWrite depthTest />
         </RoundedBox>
 
-        {/* reforço frontal opaco por trás do texto (garante superfície plana e cheia
-            à frente da caixa, mesmo nos cantos arredondados). */}
-        <mesh position={[0, 0, 0.042]}>
+        {/* reforço frontal opaco por trás do texto (superfície plana e cheia à frente
+            da caixa, mesmo nos cantos arredondados). Também 100% opaco. */}
+        <mesh position={[0, 0, 0.048]}>
           <planeGeometry args={[w - 0.06, h - 0.06]} />
-          <meshBasicMaterial color="#0f1e42" toneMapped={false} />
+          <meshBasicMaterial color="#0f1e42" toneMapped={false} transparent={false} depthWrite depthTest />
         </mesh>
 
         {/* faixa de cabeçalho luminosa (recuada das bordas) */}
