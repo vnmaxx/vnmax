@@ -60,10 +60,20 @@ function applyGroupOpacity(group: THREE.Object3D | null, opacityFactor: number, 
         mats.forEach((m: any) => { if (m) { m.transparent = false; m.opacity = 1; } });
         return;
       }
+      // keepBright: opacidade sempre cheia, mas mantém transparent (bordas de
+      // texto suaves). Usado no texto dos painéis para nunca ficar "apagado".
+      if (obj.userData && obj.userData.keepBright) {
+        mats.forEach((m: any) => { if (m) m.opacity = 1; });
+        return;
+      }
       mats.forEach((m: any) => {
         if (!m) return;
         if (m.userData && m.userData.keepOpaque) {
           m.transparent = false;
+          m.opacity = 1;
+          return;
+        }
+        if (m.userData && m.userData.keepBright) {
           m.opacity = 1;
           return;
         }
