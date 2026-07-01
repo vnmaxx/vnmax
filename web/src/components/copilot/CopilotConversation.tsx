@@ -120,7 +120,7 @@ function EmptyState() {
         <span className="text-3xl">🤖</span>
       </div>
       <h3 className="mb-2 font-mono text-sm font-medium text-white/80">
-        Bem-vindo ao Nexus AI
+        Bem-vindo ao VNMAX AI
       </h3>
       <p className="max-w-[200px] font-mono text-xs text-white/40">
         Como posso ajudá-lo hoje?
