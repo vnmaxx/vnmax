@@ -54,7 +54,7 @@ export function CopilotWindow({ copilot }: CopilotWindowProps) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="fixed bottom-24 right-6 z-[9999] flex h-[85vh] max-h-[720px] w-[420px] max-w-[calc(100vw-48px)] flex-col overflow-hidden rounded-2xl shadow-2xl sm:bottom-6"
+        className="fixed inset-x-3 bottom-3 top-3 z-[9999] flex flex-col overflow-hidden rounded-2xl shadow-2xl sm:inset-x-auto sm:top-auto sm:bottom-6 sm:right-6 sm:h-[85vh] sm:max-h-[720px] sm:w-[420px] sm:max-w-[calc(100vw-48px)]"
         style={{
           background: 'linear-gradient(145deg, rgba(10, 15, 31, 0.95) 0%, rgba(6, 9, 20, 0.98) 100%)',
           backdropFilter: 'blur(40px)',
@@ -65,11 +65,13 @@ export function CopilotWindow({ copilot }: CopilotWindowProps) {
         aria-label="VNMAX AI Copilot"
       >
         <CopilotHeader copilot={copilot} />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 overflow-hidden">
           <CopilotSidebar copilot={copilot} />
-          <div className="flex flex-1 flex-col">
-            <CopilotConversation copilot={copilot} />
-            {renderMode()}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto crm-scroll">
+              <CopilotConversation copilot={copilot} />
+              {renderMode()}
+            </div>
             <CopilotChatInput copilot={copilot} />
           </div>
         </div>

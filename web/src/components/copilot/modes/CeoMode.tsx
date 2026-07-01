@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { UseCopilotReturn } from '../../../hooks/useCopilot';
+import { Icon } from '../Icons';
 
 const phases = [
-  { id: 0, icon: '💡', label: 'Ideia', question: 'Descreva sua ideia ou problema de negócio:' },
-  { id: 1, icon: '🎯', label: 'Objetivos', question: 'Quais são os principais objetivos do projeto?' },
-  { id: 2, icon: '👥', label: 'Público', question: 'Quem é o público-alvo?' },
-  { id: 3, icon: '💰', label: 'Modelo', question: 'Como você planeja monetizar?' },
-  { id: 4, icon: '🏆', label: 'Concorrência', question: 'Quem são os principais concorrentes?' },
-  { id: 5, icon: '✨', label: 'Diferenciais', question: 'O que vai diferenciar seu projeto?' },
-  { id: 6, icon: '🚀', label: 'MVP', question: 'Quais funcionalidades são essenciais para o MVP?' },
-  { id: 7, icon: '📋', label: 'Roadmap', question: 'Qual timeline você espera para o desenvolvimento?' },
-  { id: 8, icon: '🛠️', label: 'Stack', question: 'Você tem alguma preferência de tecnologia?' },
+  { id: 0, iconName: 'sparkles', label: 'Ideia', question: 'Descreva sua ideia ou problema de negócio:' },
+  { id: 1, iconName: 'star', label: 'Objetivos', question: 'Quais são os principais objetivos do projeto?' },
+  { id: 2, iconName: 'building', label: 'Público', question: 'Quem é o público-alvo?' },
+  { id: 3, iconName: 'dollar', label: 'Modelo', question: 'Como você planeja monetizar?' },
+  { id: 4, iconName: 'star', label: 'Concorrência', question: 'Quem são os principais concorrentes?' },
+  { id: 5, iconName: 'sparkles', label: 'Diferenciais', question: 'O que vai diferenciar seu projeto?' },
+  { id: 6, iconName: 'rocket', label: 'MVP', question: 'Quais funcionalidades são essenciais para o MVP?' },
+  { id: 7, iconName: 'document', label: 'Roadmap', question: 'Qual timeline você espera para o desenvolvimento?' },
+  { id: 8, iconName: 'wrench', label: 'Stack', question: 'Você tem alguma preferência de tecnologia?' },
 ];
 
 export function CeoMode({ copilot }: { copilot: UseCopilotReturn }) {
@@ -50,7 +51,7 @@ export function CeoMode({ copilot }: { copilot: UseCopilotReturn }) {
 
   const generateFinalReport = async () => {
     const context = phases
-      .map((p, i) => `${p.icon} ${p.label}: ${responses[i] || responses[currentPhase]}`)
+      .map((p, i) => `${p.label}: ${responses[i] || responses[currentPhase]}`)
       .join('\n');
 
     const prompt = `## Análise Estratégica Completa
@@ -78,16 +79,20 @@ Seja detalhado e profissional.`;
     return (
       <div className="border-t p-4" style={{ borderColor: 'rgba(65, 232, 255, 0.08)' }}>
         <div className="mb-3 flex items-center justify-between">
-          <p className="font-mono text-xs text-neon-cyan">📊 Relatório Gerado</p>
+          <div className="flex items-center gap-2">
+            <Icon name="document" className="h-4 w-4 text-neon-cyan" />
+            <p className="font-mono text-xs text-neon-cyan">Relatório Gerado</p>
+          </div>
           <button
             onClick={() => {
               setShowReport(false);
               setResponses({});
               setCeoPhase(0);
             }}
-            className="font-mono text-[10px] text-white/40 hover:text-white/70"
+            className="font-mono text-[10px] text-white/40 hover:text-white/70 flex items-center gap-1"
           >
-            Novo projeto →
+            Novo projeto
+            <Icon name="rocket" className="h-3 w-3" />
           </button>
         </div>
         <div className="rounded-lg p-3 font-mono text-xs text-white/60" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
@@ -126,7 +131,7 @@ Seja detalhado e profissional.`;
         {phases.map((phase) => (
           <div
             key={phase.id}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm transition-all"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all"
             style={{
               background: phase.id === currentPhase
                 ? 'linear-gradient(135deg, rgba(65, 232, 255, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)'
@@ -139,7 +144,11 @@ Seja detalhado e profissional.`;
             }}
             title={phase.label}
           >
-            {phase.id < currentPhase ? '✓' : phase.icon}
+            {phase.id < currentPhase ? (
+              <Icon name="check" className="h-4 w-4 text-neon-cyan" />
+            ) : (
+              <Icon name={phase.iconName} className="h-4 w-4" />
+            )}
           </div>
         ))}
       </div>
@@ -147,7 +156,7 @@ Seja detalhado e profissional.`;
       {/* Current phase */}
       <div className="p-4">
         <div className="mb-3 flex items-center gap-2">
-          <span className="text-xl">{phases[currentPhase].icon}</span>
+          <Icon name={phases[currentPhase].iconName} className="h-5 w-5 text-neon-cyan" />
           <span className="font-mono text-sm font-medium text-white/80">
             {phases[currentPhase].label}
           </span>
@@ -198,10 +207,10 @@ Seja detalhado e profissional.`;
       {Object.keys(responses).length > 0 && (
         <div className="border-t px-4 py-2" style={{ borderColor: 'rgba(65, 232, 255, 0.05)' }}>
           <p className="mb-2 font-mono text-[10px] text-white/40">Respostas anteriores:</p>
-          <div className="space-y-1 max-h-[80px] overflow-y-auto">
+          <div className="space-y-1">
             {Object.entries(responses).map(([idx, response]) => (
               <div key={idx} className="flex items-start gap-2 text-xs">
-                <span>{phases[parseInt(idx)].icon}</span>
+                <Icon name={phases[parseInt(idx)].iconName} className="h-3 w-3 shrink-0 mt-0.5" />
                 <span className="font-mono text-white/50 truncate flex-1">
                   {response.substring(0, 50)}...
                 </span>

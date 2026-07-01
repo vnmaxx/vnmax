@@ -1,13 +1,14 @@
 import { motion } from 'framer-motion';
 import type { UseCopilotReturn } from '../../hooks/useCopilot';
 import type { CopilotMode } from '../../types/copilot';
+import { Icon } from './Icons';
 
-const modes: { id: CopilotMode; icon: string; label: string; description: string }[] = [
-  { id: 'chat', icon: '💬', label: 'Conversar', description: 'Tire suas dúvidas' },
-  { id: 'ceo', icon: '👑', label: 'CEO AI', description: 'Consultor estratégico' },
-  { id: 'project', icon: '🚀', label: 'Projeto', description: 'Solicite um projeto' },
-  { id: 'meeting', icon: '📅', label: 'Reunião', description: 'Agende uma reunião' },
-  { id: 'document', icon: '📄', label: 'Documentos', description: 'Analise arquivos' },
+const modes: { id: CopilotMode; iconName: string; label: string; description: string }[] = [
+  { id: 'chat', iconName: 'message', label: 'Conversar', description: 'Tire suas dúvidas' },
+  { id: 'ceo', iconName: 'crown', label: 'CEO AI', description: 'Consultor estratégico' },
+  { id: 'project', iconName: 'rocket', label: 'Projeto', description: 'Solicite um projeto' },
+  { id: 'meeting', iconName: 'calendar', label: 'Reunião', description: 'Agende uma reunião' },
+  { id: 'document', iconName: 'document', label: 'Documentos', description: 'Analise arquivos' },
 ];
 
 export function CopilotSidebar({ copilot }: { copilot: UseCopilotReturn }) {
@@ -36,7 +37,7 @@ export function CopilotSidebar({ copilot }: { copilot: UseCopilotReturn }) {
           aria-label={mode.label}
           title={mode.label}
         >
-          <span className="text-lg">{mode.icon}</span>
+          <Icon name={mode.iconName} className={`h-5 w-5 ${state.mode === mode.id ? 'text-white' : 'text-white/60'}`} />
 
           {/* Tooltip */}
           <div

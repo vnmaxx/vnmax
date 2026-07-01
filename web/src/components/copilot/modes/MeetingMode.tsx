@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { UseCopilotReturn } from '../../../hooks/useCopilot';
 import type { MeetingData } from '../../../types/copilot';
+import { Icon } from '../Icons';
 
 export function MeetingMode({ copilot }: { copilot: UseCopilotReturn }) {
   const { state, updateMeetingData, sendMessage } = copilot;
@@ -33,10 +34,10 @@ export function MeetingMode({ copilot }: { copilot: UseCopilotReturn }) {
   };
 
   const integrations = [
-    { name: 'Google Calendar', icon: '📅', status: 'coming' },
-    { name: 'Outlook', icon: '📮', status: 'coming' },
-    { name: 'Calendly', icon: '⏰', status: 'coming' },
-    { name: 'API Própria', icon: '🔗', status: 'ready' },
+    { name: 'Google Calendar', iconName: 'calendar', status: 'coming' },
+    { name: 'Outlook', iconName: 'envelope', status: 'coming' },
+    { name: 'Calendly', iconName: 'clock', status: 'coming' },
+    { name: 'API Própria', iconName: 'link', status: 'ready' },
   ];
 
   return (
@@ -51,7 +52,7 @@ export function MeetingMode({ copilot }: { copilot: UseCopilotReturn }) {
               className="flex items-center gap-1 rounded-lg px-2 py-1 font-mono text-[10px] text-white/50"
               style={{ background: 'rgba(255, 255, 255, 0.03)' }}
             >
-              <span>{int.icon}</span>
+              <Icon name={int.iconName} className="h-3 w-3 shrink-0" />
               <span>{int.name}</span>
               {int.status === 'coming' && (
                 <span className="rounded bg-neon-cyan/20 px-1 text-neon-cyan">soon</span>
@@ -62,7 +63,7 @@ export function MeetingMode({ copilot }: { copilot: UseCopilotReturn }) {
       </div>
 
       {/* Form */}
-      <div className="max-h-[180px] overflow-y-auto p-4 space-y-3">
+      <div className="p-4 space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <InputField
             label="Seu nome"
@@ -131,13 +132,14 @@ export function MeetingMode({ copilot }: { copilot: UseCopilotReturn }) {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleSubmit}
-          className="w-full rounded-lg py-2 font-mono text-xs font-medium transition-all"
+          className="w-full rounded-lg py-2 font-mono text-xs font-medium transition-all flex items-center justify-center gap-2"
           style={{
             background: 'linear-gradient(135deg, rgba(65, 232, 255, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)',
             border: '1px solid rgba(65, 232, 255, 0.4)',
           }}
         >
-          Solicitar Reunião 📅
+          <Icon name="calendar" className="h-4 w-4" />
+          <span>Solicitar Reunião</span>
         </motion.button>
       </div>
     </div>

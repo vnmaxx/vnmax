@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Icon } from './Icons';
 
 export function TypingIndicator() {
   return (
@@ -19,7 +20,7 @@ export function TypingIndicator() {
           background: 'linear-gradient(135deg, rgba(65, 232, 255, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%)',
         }}
       >
-        <span className="text-xs">🤖</span>
+        <Icon name="cpu" className="h-4 w-4 text-white/60" />
       </div>
 
       {/* Pontos animados */}
