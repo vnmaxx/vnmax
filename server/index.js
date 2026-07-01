@@ -9,7 +9,8 @@ import { chatCompletion } from './nvidia.js';
 import { tools, runTool } from './tools.js';
 import { buildSystemPrompt } from './prompt.js';
 import { saveLead, validarContato } from './leads.js';
-import { requireMember, handleStatus, handleAdapt, handleSave, handleSubmit, handleApprove, handleReject, handleMarkPosted, handleDelete } from './social.js';
+import { requireMember, handleStatus, handleAdapt, handleSave, handleSubmit, handleApprove, handleReject, handleMarkPosted, handleDelete, handleConnections, handlePublish } from './social.js';
+import { handleConnectStart, handleConnectManual, handleDisconnect, handleOAuthCallback } from './social/connections.js';
 import { handleVideoTools, handleVideoCreate, handleVideoList, handleVideoGet, handleVideoDelete } from './video.js';
 import { startWorker, resolveOutput } from './video/worker.js';
 import { claimNext } from './video/jobs.js';
@@ -230,7 +231,13 @@ async function handleSocial(req, res, origin, ip, sub) {
       if (sub === 'approve') return json(res, 200, await handleApprove(body, member), origin);
       if (sub === 'reject') return json(res, 200, await handleReject(body, member), origin);
       if (sub === 'markposted') return json(res, 200, await handleMarkPosted(body, member), origin);
+      if (sub === 'publish') return json(res, 200, await handlePublish(body, member), origin);
       if (sub === 'delete') return json(res, 200, await handleDelete(body, member), origin);
+      // Contas conectadas (registro + OAuth).
+      if (sub === 'connections') return json(res, 200, await handleConnections(body), origin);
+      if (sub === 'connect/start') return json(res, 200, await handleConnectStart(body, member), origin);
+      if (sub === 'connect/manual') return json(res, 200, await handleConnectManual(body, member), origin);
+      if (sub === 'disconnect') return json(res, 200, await handleDisconnect(body, member), origin);
     }
     return json(res, 404, { error: 'Rota social não encontrada.' }, origin);
   } catch (e) {
@@ -308,6 +315,16 @@ const server = createServer(async (req, res) => {
     if (rateLimited(ip)) return json(res, 429, { error: 'Muitas requisições. Aguarde.' }, origin);
     const sub = req.url.split('?')[0].replace('/api/video/', '');
     return handleVideo(req, res, origin, sub);
+  }
+
+  // Callback do OAuth das redes (redirect do navegador): sem Origin/token; valida o
+  // `state` gravado no inicio do fluxo. Responde HTML que fecha o popup.
+  if (req.method === 'GET' && req.url.startsWith('/api/social/oauth/callback')) {
+    const qs = Object.fromEntries(new URL(req.url, 'http://localhost').searchParams);
+    let html = '<!doctype html><p>Erro.</p>';
+    try { html = await handleOAuthCallback(qs); } catch (e) { console.error('[oauth] erro callback:', e.message); }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end(html);
   }
 
   if (req.url.startsWith('/api/social/')) {

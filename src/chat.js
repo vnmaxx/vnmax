@@ -60,7 +60,7 @@ export function mountChat() {
   const panel = root.querySelector('#vnchatPanel');
   const msgs = root.querySelector('#vnchatMsgs');
   const form = root.querySelector('#vnchatForm');
-  const input = root.querySelector('#vnchatText');
+  const input = /** @type {HTMLInputElement} */ (root.querySelector('#vnchatText'));
 
   loadHistory();
 

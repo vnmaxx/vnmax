@@ -11,6 +11,7 @@ import { renderLanding, bindLanding } from './landing.js';
 import { installSecretGesture } from './secret.js';
 import { mountChat, setChatVisible } from './chat.js';
 import { mountContact } from './contact.js';
+import { installEffects } from './effects.js';
 
 const app = document.getElementById('app');
 
@@ -26,3 +27,6 @@ installSecretGesture();
 mountChat();
 setChatVisible(true);
 mountContact();
+
+// Efeitos interativos discretos (cursor glow, spotlight nos cards, botoes magneticos).
+installEffects(app);

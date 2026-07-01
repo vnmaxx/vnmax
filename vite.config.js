@@ -11,13 +11,14 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 //                     separada carregada so ao acessar /interno.html.
 export default defineConfig({
   root: '.',
-  publicDir: false,
+  // public/ guarda arquivos estaticos que precisam de URL fixa e sem hash
+  // (robots.txt, sitemap.xml, og-image.png) — copiados ao pe da letra para dist/.
+  publicDir: 'public',
   build: {
-    outDir: 'dist',
+    outDir: 'dist-portal',
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: resolve(root, 'index.html'),
         interno: resolve(root, 'interno.html'),
       },
     },

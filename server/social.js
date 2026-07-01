@@ -7,7 +7,9 @@
 // allowlist. A NVIDIA_API_KEY (adaptacao) fica so aqui.
 import { db, admin } from './firebase-admin.js';
 import { adaptContent } from './social/adapt.js';
-import { PLATFORMS, PLATFORM_KEYS, isPlatform } from './social/platforms.js';
+import { PLATFORMS, PLATFORM_KEYS, isPlatform, authMode, apiCapable } from './social/platforms.js';
+import { connectableCatalog, listConnections, platformConnectable, getConnection } from './social/connections.js';
+import { canPublish, publishTo } from './social/publishers.js';
 export { requireMember } from './auth.js';
 
 const COLLECTION = 'social_posts';
@@ -23,11 +25,17 @@ function safeUrl(u) {
 }
 
 function platformsPublic() {
-  return PLATFORM_KEYS.map((k) => ({ key: k, label: PLATFORMS[k].label, limit: PLATFORMS[k].limit, requiresMedia: PLATFORMS[k].requiresMedia, mediaType: PLATFORMS[k].mediaType }));
+  return PLATFORM_KEYS.map((k) => ({ key: k, label: PLATFORMS[k].label, limit: PLATFORMS[k].limit, requiresMedia: PLATFORMS[k].requiresMedia, mediaType: PLATFORMS[k].mediaType, authMode: authMode(k), connectable: platformConnectable(k), api: apiCapable(k) }));
 }
 
 export async function handleStatus() {
-  return { nvidia: Boolean(process.env.NVIDIA_API_KEY), platforms: platformsPublic() };
+  return { nvidia: Boolean(process.env.NVIDIA_API_KEY), platforms: platformsPublic(), catalog: connectableCatalog() };
+}
+
+// Lista as contas conectadas. Sem clienteId -> contas globais (VNMAX).
+export async function handleConnections(body) {
+  const clienteId = body && 'clienteId' in body ? (body.clienteId || null) : undefined;
+  return { connections: await listConnections(clienteId) };
 }
 
 export async function handleAdapt(body, signal) {
@@ -55,7 +63,9 @@ function buildCampaign(body) {
     permalink: null,
     postedAt: null,
   }));
-  return { content, tone: body?.tone || null, mediaUrls, scheduleAt, platforms: wanted, targets };
+  const clienteId = body?.clienteId ? String(body.clienteId).slice(0, 200) : null;
+  const clienteNome = body?.clienteNome ? String(body.clienteNome).trim().slice(0, 200) : null;
+  return { content, tone: body?.tone || null, mediaUrls, scheduleAt, platforms: wanted, targets, clienteId, clienteNome };
 }
 
 // Cria ou atualiza um rascunho. body.id presente -> atualiza (se editavel e do dono).
@@ -152,4 +162,35 @@ export async function handleDelete(body, member) {
   if (data.createdBy && data.createdBy !== member.uid) { const e = new Error('Sem permissão para excluir.'); e.status = 403; throw e; }
   await ref.delete();
   return { id: ref.id, deleted: true };
+}
+
+// Publica AUTOMATICAMENTE uma rede da campanha via API (usa o token da conta
+// conectada do cliente da campanha). So redes com api:true (X, LinkedIn, Telegram).
+// Em caso de sucesso marca o target como publicado (igual ao markposted).
+export async function handlePublish(body, member) {
+  const { ref, data } = await loadForTransition(body?.id);
+  if (!['aprovado', 'agendado', 'publicado'].includes(data.status)) { const e = new Error('Aprove a campanha antes de publicar.'); e.status = 409; throw e; }
+  const platform = String(body?.platform || '');
+  if (!isPlatform(platform)) { const e = new Error('Rede inválida.'); e.status = 400; throw e; }
+  if (!canPublish(platform)) { const e = new Error('Publicação automática não disponível para esta rede — use abrir/colar.'); e.status = 400; throw e; }
+  const targets = Array.isArray(data.targets) ? data.targets : [];
+  const t = targets.find((x) => x.platform === platform);
+  if (!t) { const e = new Error('Rede não faz parte desta campanha.'); e.status = 400; throw e; }
+  if (t.posted) { const e = new Error('Esta rede já foi publicada.'); e.status = 409; throw e; }
+
+  const conn = await getConnection(platform, data.clienteId || null);
+  if (!conn || conn.status !== 'connected') { const e = new Error(`Conecte a conta de ${PLATFORMS[platform].label} (na aba Contas) para o cliente antes de publicar.`); e.status = 409; throw e; }
+
+  // Os publishers ja retornam mensagens curadas (sem vazar token/resposta crua),
+  // entao deixamos o erro chegar ao operador (ex.: "token expirou — reconecte").
+  const result = await publishTo(platform, { caption: t.caption, mediaUrls: data.mediaUrls || [], conn });
+
+  t.posted = true;
+  t.permalink = result?.permalink || t.permalink || null;
+  t.postedAt = Date.now();
+  const allPosted = targets.length > 0 && targets.every((x) => x.posted);
+  const base = (data.scheduleAt && data.scheduleAt > Date.now()) ? 'agendado' : 'aprovado';
+  const status = allPosted ? 'publicado' : base;
+  await ref.update({ targets, status, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+  return { id: ref.id, status, targets, permalink: t.permalink };
 }

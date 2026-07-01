@@ -1,10 +1,17 @@
 node_modules
 dist
+dist-portal
 .DS_Store
 *.log
 .env
 .env.local
 .vercel
+
+# Web sub-project (React app)
+web/node_modules
+web/dist
+web/.env
+web/.env.local
 
 # Credenciais — nunca versionar
 serviceAccount.json

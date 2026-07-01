@@ -32,6 +32,8 @@ const P = {
   tag: '<path d="M20.6 13.4 13 21a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1 0-2.8L10.6 3.6A2 2 0 0 1 12 3h6a2 2 0 0 1 2 2v6a2 2 0 0 1-.4 1.4z"/><circle cx="15.5" cy="8.5" r="1.2"/>',
   whatsapp: '<path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3z"/><path d="M8.5 8.5c.3 3 2.5 5.2 5.5 5.5.6.06 1.1-.4 1.2-.9l.2-.9-2-.8-.8.8c-1-.4-1.8-1.2-2.2-2.2l.8-.8-.8-2-.9.2c-.5.1-.9.6-.9 1.2z"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  pin: '<path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
   // Redes sociais
   instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="3.6"/><circle cx="17.2" cy="6.8" r="1"/>',
   tiktok: '<path d="M13.5 4c.4 2.6 2 4.2 4.5 4.6"/><path d="M13.5 4v9.8a3.6 3.6 0 1 1-3.3-3.59"/>',

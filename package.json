@@ -4,8 +4,10 @@
   "description": "Site VNMAX com autenticacao Firebase",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm --prefix web ci && npm --prefix web run build && node scripts/merge-dist.mjs",
     "preview": "vite preview",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "seed": "node scripts/seed-firestore.mjs",
     "seed:docs": "node scripts/seed-firestore.mjs docs",
     "allow": "node scripts/seed-firestore.mjs",
@@ -16,6 +18,10 @@
     "vite": "^8.1.0"
   },
   "devDependencies": {
-    "firebase-admin": "^13.10.0"
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "firebase-admin": "^13.10.0",
+    "globals": "^17.7.0",
+    "typescript": "^6.0.3"
   }
 }
