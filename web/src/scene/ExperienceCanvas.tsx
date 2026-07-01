@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Lightformer } from '@react-three/drei';
+import { Environment, Lightformer, Preload } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { bindPointer, scrollState } from '../lib/scrollState';
@@ -290,6 +290,10 @@ export default function ExperienceCanvas() {
         <fog attach="fog" args={['#03040d', 30, 140]} />
         <Suspense fallback={null}>
           <SceneContent />
+          {/* Pré-compila TODOS os shaders/texturas no load (atrás da tela de
+              carregamento). Sem isto, a revelação em massa dos objetos no pico
+              do brilho compilava tudo de uma vez e TRAVAVA. */}
+          <Preload all />
         </Suspense>
         {profile.effects && (
           <EffectComposer enableNormalPass={false} multisampling={0}>
