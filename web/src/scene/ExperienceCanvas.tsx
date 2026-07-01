@@ -51,12 +51,17 @@ function applyGroupOpacity(group: THREE.Object3D | null, opacityFactor: number, 
     // materials on meshes / sprites
     if (obj.isMesh || obj.isSprite) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      // keepOpaque no MESH (confiável, independe de propagação p/ o material):
+      // corpo dos painéis de vidro NUNCA faz fade → sempre 100% opaco. Só a
+      // visibilidade do grupo (opacityFactor<=0 acima) os liga/desliga. Sem
+      // isto o fade forçava transparent=true e opacidade<1 (painéis "vazados",
+      // dependendo da posição de scroll no carregamento).
+      if (obj.userData && obj.userData.keepOpaque) {
+        mats.forEach((m: any) => { if (m) { m.transparent = false; m.opacity = 1; } });
+        return;
+      }
       mats.forEach((m: any) => {
         if (!m) return;
-        // materiais marcados keepOpaque NUNCA fazem fade → sempre 100% opacos
-        // (corpo dos painéis de vidro da galeria). Só a visibilidade do grupo
-        // (opacityFactor<=0 acima) os liga/desliga. Sem isto o fade forçava
-        // transparent=true e opacidade<1, deixando os painéis "vazados".
         if (m.userData && m.userData.keepOpaque) {
           m.transparent = false;
           m.opacity = 1;
@@ -181,8 +186,8 @@ function SceneContent() {
           Dispositivos fracos: menos partículas e flash branco mais suave —
           evita o pico de overdraw que travava GPUs antigas no clarão. */}
       <WarpEffect
-        count={profile.isMobile || profile.lowPower ? 2600 : 6500}
-        maxFlash={profile.isMobile || profile.lowPower ? 0.78 : 1.35}
+        count={profile.isMobile || profile.lowPower ? 2000 : 4200}
+        maxFlash={profile.isMobile || profile.lowPower ? 0.6 : 0.92}
       />
       {/* nebulosa de transição — nuvem que revela planetas suavemente, p=0.22→0.65 */}
       <NebulaReveal />
@@ -279,11 +284,11 @@ export default function ExperienceCanvas() {
         {profile.effects && (
           <EffectComposer enableNormalPass={false} multisampling={0}>
             <Bloom
-              intensity={profile.isMobile ? 0.35 : 0.65}
-              luminanceThreshold={0.18}
-              luminanceSmoothing={0.4}
+              intensity={profile.isMobile ? 0.32 : 0.5}
+              luminanceThreshold={0.25}
+              luminanceSmoothing={0.5}
               mipmapBlur
-              radius={0.7}
+              radius={0.6}
             />
             <Vignette offset={0.3} darkness={0.85} eskil={false} />
           </EffectComposer>
