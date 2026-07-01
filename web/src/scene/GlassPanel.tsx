@@ -94,9 +94,9 @@ export function GlassPanel({
         {/* corpo de vidro fosco escuro — sólido (sem transmissão) p/ cor cheia */}
         <RoundedBox args={[w, h, 0.08]} radius={0.1} smoothness={4}>
           <meshPhysicalMaterial
-            color="#0c1530"
-            emissive="#070c1c"
-            emissiveIntensity={0.5}
+            color="#16264d"
+            emissive="#0e1c40"
+            emissiveIntensity={0.9}
             roughness={0.3}
             metalness={0.14}
             clearcoat={1}
@@ -107,10 +107,12 @@ export function GlassPanel({
           />
         </RoundedBox>
 
-        {/* placa escura por trás do texto → contraste alto, texto bem legível */}
-        <mesh position={[0, 0, 0.045]}>
-          <planeGeometry args={[w - 0.14, h - 0.14]} />
-          <meshBasicMaterial color="#040711" toneMapped={false} />
+        {/* preenchimento SÓLIDO por trás do texto — basic material (não depende de
+            luz da cena), opaco e cor cheia p/ o card não "sumir" contra o espaço.
+            Cobre quase todo o card, deixando só um fio de borda p/ o brilho holográfico. */}
+        <mesh position={[0, 0, 0.042]}>
+          <planeGeometry args={[w - 0.06, h - 0.06]} />
+          <meshBasicMaterial color="#0f1e42" toneMapped={false} />
         </mesh>
 
         {/* faixa de cabeçalho luminosa (recuada das bordas) */}

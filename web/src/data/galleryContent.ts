@@ -38,7 +38,7 @@ export const galleryCards: GalleryCard[] = [
   {
     id: 'program-hero',
     index: '01',
-    title: 'Programa Nexus Digital 90',
+    title: 'Programa VNMAX Digital 90',
     tag: 'Atrair. Operar. Evoluir.',
     body:
       'Um ciclo de aceleração de 90 dias para transformar empresas tradicionais em negócios mais encontrados, organizados e preparados para crescer.',
