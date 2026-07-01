@@ -91,25 +91,15 @@ export function GlassPanel({
           scrollSpin={0}
         />
 
-        {/* corpo de vidro fosco escuro — sólido (sem transmissão) p/ cor cheia */}
+        {/* corpo do card — SÓLIDO e 100% OPACO. Usa meshBasicMaterial (não depende
+            de luz da cena, como o physical dependia — que renderizava quase preto e
+            "sumia") e escreve profundidade, ocultando tudo atrás. Cor navy cheia. */}
         <RoundedBox args={[w, h, 0.08]} radius={0.1} smoothness={4}>
-          <meshPhysicalMaterial
-            color="#16264d"
-            emissive="#0e1c40"
-            emissiveIntensity={0.9}
-            roughness={0.3}
-            metalness={0.14}
-            clearcoat={1}
-            clearcoatRoughness={0.16}
-            iridescence={0.32}
-            iridescenceIOR={1.3}
-            envMapIntensity={0.95}
-          />
+          <meshBasicMaterial color="#0f1e42" toneMapped={false} />
         </RoundedBox>
 
-        {/* preenchimento SÓLIDO por trás do texto — basic material (não depende de
-            luz da cena), opaco e cor cheia p/ o card não "sumir" contra o espaço.
-            Cobre quase todo o card, deixando só um fio de borda p/ o brilho holográfico. */}
+        {/* reforço frontal opaco por trás do texto (garante superfície plana e cheia
+            à frente da caixa, mesmo nos cantos arredondados). */}
         <mesh position={[0, 0, 0.042]}>
           <planeGeometry args={[w - 0.06, h - 0.06]} />
           <meshBasicMaterial color="#0f1e42" toneMapped={false} />
