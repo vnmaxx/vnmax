@@ -456,6 +456,11 @@ html { scrollbar-color: #3a3a42 transparent; scrollbar-width: thin; }
 .crm-fields { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 14px; }
 .crm-fields dt { color: var(--text-dim); }
 .crm-fields dd { color: var(--text); word-break: break-word; }
+.crm-msg { margin-top: 22px; }
+.crm-msg h4 { font-size: 14px; margin-bottom: 10px; }
+.crm-msg-bubble { background: var(--graphite); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; margin-bottom: 10px; }
+.crm-msg-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.crm-msg-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .crm-stage-sel { display: block; margin-top: 22px; font-size: 13px; color: var(--text-dim); }
 .crm-stage-sel select { display: block; width: 100%; margin-top: 7px; padding: 10px 12px; background: var(--graphite); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
 .crm-notes { margin-top: 22px; }

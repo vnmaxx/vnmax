@@ -4,7 +4,7 @@
   "description": "Site VNMAX com autenticacao Firebase",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm --prefix web ci && npm --prefix web run build && node scripts/merge-dist.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

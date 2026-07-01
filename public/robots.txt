@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /interno
+
+Sitemap: https://www.vnmax.org/sitemap.xml

@@ -1,24 +1,62 @@
 rules_version = '2';
 
-// Regras de seguranca do Firestore para a area interna da VNMAX.
+// ============================================================
+//  Regras do Firestore — RASCUNHO MESCLADO
+// ============================================================
 //
-// Modelo: o conteudo reservado fica em /internal/content. So pode ler quem estiver
-// AUTENTICADO e presente na allowlist (existe um doc /allowlist/{uid}). Escrita no
-// conteudo so via Admin SDK (seed). A allowlist e gerenciada apenas pelo console
-// ou Admin SDK — nenhum acesso pelo client.
+//  ⚠️ FUSÃO EM PROGRESSO
+//  Este arquivo é um RASCUNHO da fusão de duas bases de regras:
+//    - d:\vnmax\firestore.rules (base — deny-by-default, allowlist + isMember)
+//    - d:\Nexus Holding\firestore.rules (atual — isAdmin baseado em claims/docs/email)
 //
-// Observacao: exists()/get() dentro das regras NAO sao limitados pelas proprias
-// regras, entao consultar a allowlist funciona mesmo com /allowlist bloqueado ao client.
+//  TODAS as colecões agora usam isMember() como mecanismo unificado de autenticação/
+//  autorização. O antigo sistema isAdmin() foi removido.
+//
+//  ⚠️ INSTRUÇÕES DE DEPLOY (manual, após revisão humana):
+//    1. Revise este arquivo cuidadosamente antes de deploy.
+//    2. Certifique-se de que todos os UIDs necessários estão em /allowlist/{uid}
+//       no projeto vnmax-6a660 (Firestore).
+//    3. Publique MANUALMENTE via Firebase CLI:
+//         firebase deploy --only firestore:rules
+//       (Firebase project: vnmax-6a660)
+//    4. NÃO execute deploy automaticamente — é uma mudança de produção que
+//       requer checagem manual de acesso.
+//
+// ============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- Função de autorização unificada ---
+    // Membro é quem está autenticado E existe em /allowlist/{uid}.
+    // A allowlist é gerenciada apenas pelo console ou Admin SDK.
     function isMember() {
       return request.auth != null
         && exists(/databases/$(database)/documents/allowlist/$(request.auth.uid));
     }
 
-    // Conteudo interno reservado (portal: divisoes, roadmap, produtos).
+    // --- Validação do lead público: shape fechado + tamanhos ---
+    function validNewLead() {
+      let d = request.resource.data;
+      return
+        d.keys().hasOnly(['name','company','email','phone','segment','revenue','message','source','status','notes','createdAt']) &&
+        d.name is string && d.name.size() > 0 && d.name.size() < 200 &&
+        d.email is string && d.email.size() > 0 && d.email.size() < 200 &&
+        d.status == 'novo' &&
+        d.source is string && d.source.size() < 60 &&
+        (!('company' in d) || (d.company is string && d.company.size() < 200)) &&
+        (!('phone' in d) || (d.phone is string && d.phone.size() < 60)) &&
+        (!('segment' in d) || (d.segment is string && d.segment.size() < 120)) &&
+        (!('revenue' in d) || (d.revenue is string && d.revenue.size() < 120)) &&
+        (!('message' in d) || (d.message is string && d.message.size() < 5000)) &&
+        (!('notes' in d) || (d.notes is string && d.notes.size() < 5000));
+    }
+
+    // ============================================================
+    // COLECÕES DO VNMAX (mantidas exatamente como estão)
+    // ============================================================
+
+    // Conteúdo interno reservado (portal: divisões, roadmap, produtos).
     match /internal/{doc} {
       allow read: if isMember();
       allow write: if false;          // somente Admin SDK (seed)
@@ -67,7 +105,59 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Tudo o mais e negado por padrao.
+    // ============================================================
+    // COLECÕES DO NEXUS HOLDING (adaptadas para isMember())
+    // ============================================================
+
+    // Clientes CRM
+    match /clientes/{clienteId} {
+      allow read, write: if isMember();
+    }
+
+    // Propostas/Orçamentos
+    match /propostas/{propostaId} {
+      allow read, write: if isMember();
+    }
+
+    // Tarefas/To-do
+    match /tarefas/{tarefaId} {
+      allow read, write: if isMember();
+    }
+
+    // Campanhas de marketing
+    match /campanhas/{campanhaId} {
+      allow read, write: if isMember();
+    }
+
+    // Conteúdo/assets
+    match /content/{contentId} {
+      allow read, write: if isMember();
+    }
+
+    // Usuários/membros da equipe
+    match /usuarios/{usuarioId} {
+      allow read, write: if isMember();
+    }
+
+    // Histórico de ações (auditoria)
+    match /historico/{entradaId} {
+      allow read, write: if isMember();
+    }
+
+    // Eventos/logs
+    match /eventos/{eventoId} {
+      allow read, write: if isMember();
+    }
+
+    // Parcelas/Financeiro
+    match /parcelas/{parcelaId} {
+      allow read, write: if isMember();
+    }
+
+    // ============================================================
+    // DENY-BY-DEFAULT
+    // ============================================================
+    // Tudo o mais é negado por padrão.
     match /{document=**} {
       allow read, write: if false;
     }

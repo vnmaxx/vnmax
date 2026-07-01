@@ -31,6 +31,21 @@ const CANAIS = {
 };
 const EVENT_ICON = { origem: 'spark', mensagem: 'mail', conversa: 'doc', nota: 'pencil', stage: 'arrow', proposta: 'tag', resposta: 'mail' };
 
+// Numero de WhatsApp normalizado para o link wa.me (assume DDI 55 se vier so com DDD).
+function waDigits(raw) {
+  const d = String(raw || '').replace(/\D/g, '');
+  if (!d) return '';
+  return d.length <= 11 ? '55' + d : d;
+}
+// Link wa.me — com `text` prepara a mensagem, sem `text` abre so a conversa.
+function waLink(raw, text) {
+  const d = waDigits(raw);
+  if (!d) return '';
+  return `https://wa.me/${d}${text ? '?text=' + encodeURIComponent(text) : ''}`;
+}
+const mapsLink = (q) => (q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : '');
+const googleLink = (q) => (q ? `https://www.google.com/search?q=${encodeURIComponent(q)}` : '');
+
 function soft(hex) {
   const h = (hex || '#9b5cff').replace('#', '');
   const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
@@ -499,6 +514,30 @@ async function loadCrm(root) {
           <dt>Criado</dt><dd>${fmtDate(l.createdAt) || '—'}</dd>
         </dl>
 
+        ${(() => {
+          const msgText = l.mensagem || '';
+          const waMsg = waLink(l.whatsapp, msgText);
+          const waPlain = waLink(l.whatsapp);
+          const gMaps = mapsLink(l.empresa || l.nome);
+          const gSearch = googleLink(l.empresa || l.nome);
+          if (!msgText && !waPlain) return '';
+          return `
+        <div class="crm-msg">
+          <h4>Mensagem</h4>
+          ${msgText ? `<div class="crm-msg-bubble" id="cdMsgText">${escapeHtml(msgText)}</div>` : ''}
+          <div class="crm-msg-actions">
+            ${msgText ? `<button class="btn btn-ghost" id="cdMsgCopy">${icon('doc')} Copiar</button>` : ''}
+            <button class="btn btn-ghost" id="cdMsgSent">${icon('check')} Registrar como enviada</button>
+            ${waMsg ? `<a class="btn btn-primary" href="${waMsg}" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} Enviar no WhatsApp</a>` : ''}
+          </div>
+          <div class="crm-msg-links">
+            ${gMaps ? `<a class="btn btn-ghost so-mini" href="${gMaps}" target="_blank" rel="noopener noreferrer">${icon('pin')} Maps</a>` : ''}
+            ${gSearch ? `<a class="btn btn-ghost so-mini" href="${gSearch}" target="_blank" rel="noopener noreferrer">${icon('search')} Google</a>` : ''}
+            ${waPlain ? `<a class="btn btn-ghost so-mini" href="${waPlain}" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} WhatsApp</a>` : ''}
+          </div>
+        </div>`;
+        })()}
+
         <div class="crm-edit">
           <label>Segmento / nicho<input id="cdSeg" type="text" maxlength="120" value="${escapeHtml(l.segmento || '')}" placeholder="Ex.: varejo, saúde, indústria…"></label>
           <label>Observação interna<textarea id="cdObs" rows="2" maxlength="2000" placeholder="Anotação da equipe…">${escapeHtml(l.observacao || '')}</textarea></label>
@@ -521,6 +560,22 @@ async function loadCrm(root) {
     drawer.querySelector('#cdX').addEventListener('click', close);
     drawer.addEventListener('click', (e) => { if (e.target === drawer) close(); });
     drawer.querySelectorAll('.crm-chip').forEach((ch) => ch.addEventListener('click', () => move(id, ch.dataset.stage)));
+
+    const msgCopyBtn = drawer.querySelector('#cdMsgCopy');
+    if (msgCopyBtn) msgCopyBtn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(l.mensagem || ''); msgCopyBtn.innerHTML = `${icon('check')} Copiado`; setTimeout(() => { msgCopyBtn.innerHTML = `${icon('doc')} Copiar`; }, 1400); }
+      catch { alert('Não foi possível copiar. Selecione o texto manualmente.'); }
+    });
+
+    const msgSentBtn = drawer.querySelector('#cdMsgSent');
+    if (msgSentBtn) msgSentBtn.addEventListener('click', async () => {
+      msgSentBtn.disabled = true;
+      try {
+        await addLeadEvent(id, 'mensagem', 'Mensagem registrada como enviada');
+        l.historico = [...(l.historico || []), { tipo: 'mensagem', texto: 'Mensagem registrada como enviada', em: Date.now() }];
+        openDrawer(id);
+      } catch (e) { msgSentBtn.disabled = false; alert('Falha ao registrar: ' + e.message); }
+    });
 
     drawer.querySelector('#cdSave').addEventListener('click', async (e) => {
       const seg = drawer.querySelector('#cdSeg').value.trim();
