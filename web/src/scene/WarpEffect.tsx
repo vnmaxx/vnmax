@@ -6,8 +6,15 @@ import { scrollState } from '../lib/scrollState';
 /* ------------------------------------------------------------------ */
 /* Efeito de "viagem na luz" — partículas esticadas em linhas que      */
 /* surgem durante a transição entre a galáxia distante e o sistema     */
-/* solar (scroll progress ~0.02 a ~0.26). Um flash no pico reforça a  */
-/* sensação de chegar ao destino.                                      */
+/* solar (scroll progress ~0.02 a ~0.26).                              */
+/*                                                                     */
+/* O "white-out" do clímax é feito por um overlay DOM branco 100%      */
+/* opaco (warpBlink em components/Overlay.tsx) — barato e FORA do      */
+/* pipeline de bloom. NAO ha mais sprite de flash em WebGL aqui: um    */
+/* flash fullscreen additivo saturava a tela inteira de branco e fazia */
+/* o Bloom "explodir" sobre a imagem saturada, congelando no pico de   */
+/* brilho. O overlay DOM cobre tudo no clímax, então o flash WebGL era */
+/* redundante (invisível no pico) e só custava — foi removido.         */
 /* ------------------------------------------------------------------ */
 
 const VERTEX = /* glsl */ `
@@ -68,7 +75,7 @@ const FRAGMENT = /* glsl */ `
   }
 `;
 
-const COUNT_DEFAULT = 6500;
+const COUNT_DEFAULT = 4200;
 
 /** Warp intensity envelope: ramps up 0.02→0.12, peaks, fades 0.12→0.26 */
 function warpIntensity(p: number): number {
@@ -87,14 +94,13 @@ function warpTravel(p: number): number {
 interface WarpEffectProps {
   /** nº de partículas — menor em dispositivos fracos para evitar travamento */
   count?: number;
-  /** opacidade máxima do flash branco — menor evita pico de overdraw que
-      congela GPUs antigas quando a tela fica toda branca */
+  /** compat: mantido para não quebrar chamadas antigas; não é mais usado
+      (o white-out é feito no overlay DOM, não por um flash WebGL). */
   maxFlash?: number;
 }
 
-export function WarpEffect({ count = COUNT_DEFAULT, maxFlash = 1.35 }: WarpEffectProps = {}) {
+export function WarpEffect({ count = COUNT_DEFAULT }: WarpEffectProps = {}) {
   const ref = useRef<THREE.Points>(null);
-  const spriteRef = useRef<THREE.Sprite>(null);
   const COUNT = count;
 
   const geometry = useMemo(() => {
@@ -164,41 +170,6 @@ export function WarpEffect({ count = COUNT_DEFAULT, maxFlash = 1.35 }: WarpEffec
     [],
   );
 
-  /* --- flash texture (lens-flare sprite at warp peak) --- */
-  const flashTex = useMemo(() => {
-    const s = 256;
-    const cv = document.createElement('canvas');
-    cv.width = cv.height = s;
-    const ctx = cv.getContext('2d')!;
-    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-    g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.16, 'rgba(255,255,255,1)');
-    g.addColorStop(0.42, 'rgba(255,255,255,0.5)');
-    g.addColorStop(0.72, 'rgba(255,255,255,0.14)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, s, s);
-    const t = new THREE.CanvasTexture(cv);
-    t.colorSpace = THREE.SRGBColorSpace;
-    return t;
-  }, []);
-
-  const flashMat = useMemo(
-    () =>
-      new THREE.SpriteMaterial({
-        map: flashTex,
-        color: '#ffffff',
-        transparent: true,
-        opacity: 0,
-        blending: THREE.AdditiveBlending,
-        depthTest: false,
-        depthWrite: false,
-        toneMapped: false,
-        fog: false,
-      }),
-    [flashTex],
-  );
-
   useFrame((_, delta) => {
     const p = scrollState.progress;
     const intensity = warpIntensity(p);
@@ -212,42 +183,14 @@ export function WarpEffect({ count = COUNT_DEFAULT, maxFlash = 1.35 }: WarpEffec
       delta,
     );
     material.uniforms.uTravel.value = travel;
-
-    /* --- brilho que VEM em direção à câmera ---
-       Surge no fundo (-z), acelera e passa pela câmera no fim da viagem,
-       lavando a tela — sensação de "a luz vindo até você". */
-    const wp = THREE.MathUtils.clamp((p - 0.02) / 0.24, 0, 1);
-    const approach = wp * wp * (3 - 2 * wp); // smoothstep (acelera no meio)
-    if (spriteRef.current) {
-      // -48 (longe, à frente) → +6 (atravessa a câmera, que está em z≈3)
-      spriteRef.current.position.z = THREE.MathUtils.lerp(-48, 6, approach);
-      // aumenta conforme se aproxima (além do crescimento natural por perspectiva);
-      // escala do pico acompanha maxFlash → menos área branca em GPUs fracas.
-      // Reduzido: evita cobrir 100% da tela de branco (o que fazia o Bloom
-      // "explodir" sobre imagem saturada e congelar no pico de brilho).
-      const peak = 11 + 9 * (maxFlash / 1.35);
-      spriteRef.current.scale.setScalar(5 + approach * peak);
-    }
-    // aparece durante a aproximação e estoura ao chegar perto, sumindo ao passar
-    const rise = THREE.MathUtils.smoothstep(wp, 0.12, 0.55);
-    const pass = 1 - THREE.MathUtils.smoothstep(wp, 0.9, 0.98);
-    flashMat.opacity = Math.min(maxFlash, rise * pass * maxFlash);
   });
 
   return (
-    <group>
-      <points
-        ref={ref}
-        geometry={geometry}
-        material={material}
-        frustumCulled={false}
-      />
-      <sprite
-        ref={spriteRef}
-        material={flashMat}
-        position={[0, 0.5, -10]}
-        renderOrder={999}
-      />
-    </group>
+    <points
+      ref={ref}
+      geometry={geometry}
+      material={material}
+      frustumCulled={false}
+    />
   );
 }
