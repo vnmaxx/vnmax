@@ -245,6 +245,12 @@ function SceneContent() {
           <Planet position={[8, 1, -78]} radius={5.8} type="gas" sunPosition={[-6, 10, -58]} ring ringColor="#e6cfa0" ringInner={1.3} ringOuter={2.4} tilt={0.5} spin={0.02} seed={1.0} quality={q} />
         </FadeByDistance>
 
+        {/* planeta extra na região da MISSION (posição estimada — ajustar com
+            print). Um gigante gasoso azulado a mais no corredor. */}
+        <FadeByDistance position={[6, 2, -56]} fadeStart={2} fadeEnd={64}>
+          <Planet position={[6, 2, -56]} radius={2.4} type="gas" sunPosition={[-2, 8, -46]} colorA="#3a6ea5" colorB="#9ec9f0" tilt={0.5} spin={0.05} seed={7.3} quality={q} />
+        </FadeByDistance>
+
         {/* BURACO NEGRO — SEM corte por distância: aparece JUNTO com os
             planetas (no reveal em p≈0.2) e fica visível ao fundo durante
             toda a jornada, ficando maior conforme a câmera se aproxima. */}
