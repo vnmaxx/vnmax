@@ -3,7 +3,9 @@
     "outputDirectory": "dist",
     "rewrites": [
         { "source": "/interno", "destination": "/interno.html" },
-        { "source": "/((?!assets/|interno|robots\\.txt|sitemap\\.xml|og-image\\.png|api/).*)", "destination": "/index.html" }
+        { "source": "/termos", "destination": "/termos.html" },
+        { "source": "/privacidade", "destination": "/privacidade.html" },
+        { "source": "/((?!assets/|interno|termos|privacidade|robots\\.txt|sitemap\\.xml|og-image\\.png|tiktokd06BAQRr7Jgm45I4tOa0gtQ8keXmLKcC\\.txt|api/).*)", "destination": "/index.html" }
     ],
     "headers": [
         {
