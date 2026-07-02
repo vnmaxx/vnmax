@@ -363,11 +363,7 @@ export function BlackHole({ position = [-20, 5, -125], radius = 6, tilt = 0.42 }
 
   return (
     <group position={position}>
-      {/* glow horizontal (o "feixe") — deslocado em direção à câmera (+z, grupo
-          sem rotação) e renderOrder acima da esfera → cruza NA FRENTE do disco
-          preto, não atrás. depthTest continua true, então os painéis (bem mais
-          perto) ainda o ocultam. */}
-      <sprite ref={glowRef} material={glowMaterial} scale={[radius * 8.9, radius * 5.6, 1]} position={[0, 0, radius + 1.5]} renderOrder={6} />
+      <sprite ref={glowRef} material={glowMaterial} scale={[radius * 8.9, radius * 5.6, 1]} renderOrder={0} />
 
       <mesh renderOrder={1}>
         <sphereGeometry args={[radius, 96, 96]} />
@@ -377,7 +373,11 @@ export function BlackHole({ position = [-20, 5, -125], radius = 6, tilt = 0.42 }
       <group ref={billboardRef}>
         <points geometry={lensedStarGeometry} material={lensedStarMaterial} renderOrder={0} />
         <mesh geometry={lensGeometry} material={lensMaterial} renderOrder={2} />
-        <mesh geometry={bandGeometry} material={bandMaterial} renderOrder={3} />
+        {/* band = disco visto de perfil = o "feixe horizontal". Deslocado em
+            direção à câmera (−z local do billboard, que faz lookAt na câmera)
+            e renderOrder acima da esfera → cruza NA FRENTE do disco preto,
+            não atrás. depthTest segue true → painéis ainda o ocultam. */}
+        <mesh geometry={bandGeometry} material={bandMaterial} position={[0, 0, -(radius + 1.5)]} renderOrder={5} />
         <mesh geometry={photonGeometry} material={photonMaterial} renderOrder={4} />
       </group>
     </group>
