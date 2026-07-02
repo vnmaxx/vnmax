@@ -363,7 +363,11 @@ export function BlackHole({ position = [-20, 5, -125], radius = 6, tilt = 0.42 }
 
   return (
     <group position={position}>
-      <sprite ref={glowRef} material={glowMaterial} scale={[radius * 8.9, radius * 5.6, 1]} renderOrder={0} />
+      {/* glow horizontal (o "feixe") — deslocado em direção à câmera (+z, grupo
+          sem rotação) e renderOrder acima da esfera → cruza NA FRENTE do disco
+          preto, não atrás. depthTest continua true, então os painéis (bem mais
+          perto) ainda o ocultam. */}
+      <sprite ref={glowRef} material={glowMaterial} scale={[radius * 8.9, radius * 5.6, 1]} position={[0, 0, radius + 1.5]} renderOrder={6} />
 
       <mesh renderOrder={1}>
         <sphereGeometry args={[radius, 96, 96]} />
