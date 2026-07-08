@@ -20,7 +20,7 @@ export default [
     },
   },
   {
-    files: ['server/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}', '*.config.js', '*.js'],
+    files: ['server/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}', 'api/**/*.{js,mjs}', '*.config.js', '*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
